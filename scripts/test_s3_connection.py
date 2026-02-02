@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 S3 연결 테스트 스크립트
 
