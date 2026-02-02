@@ -1,7 +1,7 @@
 services:
   api:
     container_name: monolog-api
-    image: ghcr.io/mo-no-log/fastapi-api:latest
+    image: ghcr.io/mo-no-log/api:latest
     restart: unless-stopped
     environment:
       TZ: Asia/Seoul
