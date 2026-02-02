@@ -1,0 +1,15 @@
+{
+  "cSpell.words": [
+    "fastapi",
+    "httpx",
+    "orjson",
+    "passlib",
+    "psycopg",
+    "pydantic",
+    "secho",
+    "sqlalchemy",
+    "typer",
+    "uvicorn",
+    "venv"
+  ]
+}

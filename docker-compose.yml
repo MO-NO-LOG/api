@@ -1,0 +1,40 @@
+services:
+  api:
+    container_name: monolog-api
+    image: ghcr.io/mo-no-log/fastapi-api:latest
+    restart: unless-stopped
+    environment:
+      TZ: Asia/Seoul
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+    depends_on:
+      - postgresql
+      - redis
+    networks:
+      - monolog-network
+
+  postgresql:
+    container_name: monolog-postgresql
+    image: postgres:alpine
+    restart: unless-stopped
+    shm_size: 128mb
+    environment:
+      TZ: Asia/Seoul
+      POSTGRES_PASSWORD: ${DB_PASS}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_DB: ${DB_NAME}
+    volumes:
+      - ${DB_DATA}:/var/lib/postgresql/data
+    networks:
+      - monolog-network
+
+  redis:
+    container_name: monolog-redis
+    image: redis:alpine
+    restart: unless-stopped
+    environment:
+      TZ: Asia/Seoul
+    networks:
+      - monolog-network

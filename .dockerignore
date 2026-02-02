@@ -1,0 +1,17 @@
+.git
+.gitignore
+.github
+.vscode
+.venv
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+*.sqlite3
+*.db
+*.log
+.ruff_cache
+.pytest_cache
+node_modules
+.DS_Store
+.env
