@@ -6,7 +6,7 @@ from email.utils import formataddr
 from pathlib import Path
 
 from app.config import settings
-from app.redis_client import get_redis_client
+from app.valkey_client import get_valkey_client
 
 
 class EmailVerificationService:
@@ -22,84 +22,84 @@ class EmailVerificationService:
 
     @staticmethod
     async def store_verification_code(email: str, code: str, ttl_seconds: int) -> bool:
-        redis_client = None
+        valkey_client = None
         try:
-            redis_client = get_redis_client()
+            valkey_client = get_valkey_client()
             key = f"{EmailVerificationService.CODE_PREFIX}{email}"
-            await redis_client.setex(key, ttl_seconds, code)
+            await valkey_client.setex(key, ttl_seconds, code)
             return True
         except Exception as e:
             print(f"Error storing verification code: {e}")
             return False
         finally:
-            if redis_client:
-                await redis_client.aclose()
+            if valkey_client:
+                await valkey_client.aclose()
 
     @staticmethod
     async def verify_code(email: str, code: str, ttl_seconds: int) -> bool:
-        redis_client = None
+        valkey_client = None
         try:
-            redis_client = get_redis_client()
+            valkey_client = get_valkey_client()
             code_key = f"{EmailVerificationService.CODE_PREFIX}{email}"
-            stored_code = await redis_client.get(code_key)
+            stored_code = await valkey_client.get(code_key)
             if not stored_code or stored_code != code:
                 return False
 
             verified_key = f"{EmailVerificationService.VERIFIED_PREFIX}{email}"
-            await redis_client.delete(code_key)
-            await redis_client.setex(verified_key, ttl_seconds, "verified")
+            await valkey_client.delete(code_key)
+            await valkey_client.setex(verified_key, ttl_seconds, "verified")
             return True
         except Exception as e:
             print(f"Error verifying code: {e}")
             return False
         finally:
-            if redis_client:
-                await redis_client.aclose()
+            if valkey_client:
+                await valkey_client.aclose()
 
     @staticmethod
     async def is_email_verified(email: str) -> bool:
-        redis_client = None
+        valkey_client = None
         try:
-            redis_client = get_redis_client()
+            valkey_client = get_valkey_client()
             key = f"{EmailVerificationService.VERIFIED_PREFIX}{email}"
-            result = await redis_client.exists(key)
+            result = await valkey_client.exists(key)
             return bool(result > 0)
         except Exception as e:
             print(f"Error checking email verification: {e}")
             return False
         finally:
-            if redis_client:
-                await redis_client.aclose()
+            if valkey_client:
+                await valkey_client.aclose()
 
     @staticmethod
     async def clear_verification_code(email: str) -> bool:
-        redis_client = None
+        valkey_client = None
         try:
-            redis_client = get_redis_client()
+            valkey_client = get_valkey_client()
             key = f"{EmailVerificationService.CODE_PREFIX}{email}"
-            result = await redis_client.delete(key)
+            result = await valkey_client.delete(key)
             return bool(result > 0)
         except Exception as e:
             print(f"Error clearing verification code: {e}")
             return False
         finally:
-            if redis_client:
-                await redis_client.aclose()
+            if valkey_client:
+                await valkey_client.aclose()
 
     @staticmethod
     async def clear_email_verified(email: str) -> bool:
-        redis_client = None
+        valkey_client = None
         try:
-            redis_client = get_redis_client()
+            valkey_client = get_valkey_client()
             key = f"{EmailVerificationService.VERIFIED_PREFIX}{email}"
-            result = await redis_client.delete(key)
+            result = await valkey_client.delete(key)
             return bool(result > 0)
         except Exception as e:
             print(f"Error clearing email verified status: {e}")
             return False
         finally:
-            if redis_client:
-                await redis_client.aclose()
+            if valkey_client:
+                await valkey_client.aclose()
 
     @staticmethod
     def _build_email_message(to_email: str, code: str) -> EmailMessage:

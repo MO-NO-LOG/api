@@ -3,13 +3,13 @@ from typing import Optional
 
 from jose import JWTError
 
-from app.redis_client import get_redis_client
 from app.utils import decode_token
+from app.valkey_client import get_valkey_client
 
 
 class TokenBlacklistService:
     """
-    Service for managing token blacklist using Redis.
+    Service for managing token blacklist using Valkey.
 
     Blacklisted tokens are stored with their remaining TTL (time-to-live)
     to automatically expire when the original token would have expired.
@@ -28,9 +28,9 @@ class TokenBlacklistService:
         Returns:
             True if successfully added, False otherwise
         """
-        redis_client = None
+        valkey_client = None
         try:
-            redis_client = get_redis_client()
+            valkey_client = get_valkey_client()
 
             # Decode token to get expiration time
             payload = decode_token(token)
@@ -47,7 +47,7 @@ class TokenBlacklistService:
             # Only blacklist if token hasn't expired yet
             if ttl_seconds > 0:
                 key = f"{TokenBlacklistService.BLACKLIST_PREFIX}{token}"
-                await redis_client.setex(key, ttl_seconds, "blacklisted")
+                await valkey_client.setex(key, ttl_seconds, "blacklisted")
                 return True
 
             return False
@@ -56,8 +56,8 @@ class TokenBlacklistService:
             print(f"Error adding token to blacklist: {e}")
             return False
         finally:
-            if redis_client:
-                await redis_client.aclose()
+            if valkey_client:
+                await valkey_client.aclose()
 
     @staticmethod
     async def is_blacklisted(token: str) -> bool:
@@ -70,20 +70,20 @@ class TokenBlacklistService:
         Returns:
             True if token is blacklisted, False otherwise
         """
-        redis_client = None
+        valkey_client = None
         try:
-            redis_client = get_redis_client()
+            valkey_client = get_valkey_client()
             key = f"{TokenBlacklistService.BLACKLIST_PREFIX}{token}"
-            result = await redis_client.exists(key)
+            result = await valkey_client.exists(key)
             return bool(result > 0)
         except Exception as e:
             print(f"Error checking blacklist: {e}")
-            # Fail open - if Redis is down, allow the request
+            # Fail open - if Valkey is down, allow the request
             # (token validation will still happen via JWT signature)
             return False
         finally:
-            if redis_client:
-                await redis_client.aclose()
+            if valkey_client:
+                await valkey_client.aclose()
 
     @staticmethod
     async def remove_from_blacklist(token: str) -> bool:
@@ -96,23 +96,23 @@ class TokenBlacklistService:
         Returns:
             True if successfully removed, False otherwise
         """
-        redis_client = None
+        valkey_client = None
         try:
-            redis_client = get_redis_client()
+            valkey_client = get_valkey_client()
             key = f"{TokenBlacklistService.BLACKLIST_PREFIX}{token}"
-            result = await redis_client.delete(key)
+            result = await valkey_client.delete(key)
             return bool(result > 0)
         except Exception as e:
             print(f"Error removing token from blacklist: {e}")
             return False
         finally:
-            if redis_client:
-                await redis_client.aclose()
+            if valkey_client:
+                await valkey_client.aclose()
 
 
 class RefreshTokenService:
     """
-    Service for managing refresh tokens using Redis.
+    Service for managing refresh tokens using Valkey.
 
     Refresh tokens are stored with user email as key to allow
     single-device or multi-device session management.
@@ -135,9 +135,9 @@ class RefreshTokenService:
         Returns:
             True if successfully stored, False otherwise
         """
-        redis_client = None
+        valkey_client = None
         try:
-            redis_client = get_redis_client()
+            valkey_client = get_valkey_client()
 
             if expires_delta:
                 ttl_seconds = int(expires_delta.total_seconds())
@@ -147,15 +147,15 @@ class RefreshTokenService:
                 ttl_seconds = settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60
 
             key = f"{RefreshTokenService.REFRESH_TOKEN_PREFIX}{email}"
-            await redis_client.setex(key, ttl_seconds, refresh_token)
+            await valkey_client.setex(key, ttl_seconds, refresh_token)
             return True
 
         except Exception as e:
             print(f"Error storing refresh token: {e}")
             return False
         finally:
-            if redis_client:
-                await redis_client.aclose()
+            if valkey_client:
+                await valkey_client.aclose()
 
     @staticmethod
     async def get_refresh_token(email: str) -> Optional[str]:
@@ -168,18 +168,18 @@ class RefreshTokenService:
         Returns:
             Refresh token if exists, None otherwise
         """
-        redis_client = None
+        valkey_client = None
         try:
-            redis_client = get_redis_client()
+            valkey_client = get_valkey_client()
             key = f"{RefreshTokenService.REFRESH_TOKEN_PREFIX}{email}"
-            result = await redis_client.get(key)
+            result = await valkey_client.get(key)
             return str(result) if result else None
         except Exception as e:
             print(f"Error getting refresh token: {e}")
             return None
         finally:
-            if redis_client:
-                await redis_client.aclose()
+            if valkey_client:
+                await valkey_client.aclose()
 
     @staticmethod
     async def verify_refresh_token(email: str, refresh_token: str) -> bool:
@@ -211,15 +211,15 @@ class RefreshTokenService:
         Returns:
             True if successfully deleted, False otherwise
         """
-        redis_client = None
+        valkey_client = None
         try:
-            redis_client = get_redis_client()
+            valkey_client = get_valkey_client()
             key = f"{RefreshTokenService.REFRESH_TOKEN_PREFIX}{email}"
-            result = await redis_client.delete(key)
+            result = await valkey_client.delete(key)
             return bool(result > 0)
         except Exception as e:
             print(f"Error deleting refresh token: {e}")
             return False
         finally:
-            if redis_client:
-                await redis_client.aclose()
+            if valkey_client:
+                await valkey_client.aclose()

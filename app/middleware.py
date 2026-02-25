@@ -1,7 +1,7 @@
 from typing import Callable
 
 from fastapi import Request
-from fastapi.responses import ORJSONResponse
+from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.config import settings
@@ -77,7 +77,7 @@ class CsrfMiddleware(BaseHTTPMiddleware):
             cookie_token = request.cookies.get(settings.CSRF_COOKIE_NAME)
 
             if not validate_csrf_tokens(cookie_token, header_token):
-                return ORJSONResponse(
+                return JSONResponse(
                     status_code=403,
                     content={
                         "code": "CSRF_INVALID",
@@ -109,7 +109,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
     """
     Rate limiting middleware to prevent abuse.
 
-    Uses Redis for distributed rate limiting.
+    Uses Valkey for distributed rate limiting.
     Rate limits are applied per IP + path combination.
     """
 
@@ -128,7 +128,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         )
 
         if not allowed:
-            return ORJSONResponse(
+            return JSONResponse(
                 status_code=429,
                 content={
                     "code": "RATE_LIMITED",

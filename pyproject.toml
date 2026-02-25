@@ -18,11 +18,11 @@ dependencies = [
     "pydantic[email]>=2.12.5",
     "python-jose[cryptography]>=3.5.0",
     "python-multipart>=0.0.21",
-    "redis>=7.1.0",
     "ruff>=0.14.14",
     "sqlalchemy>=2.0.46",
     "ty>=0.0.14",
     "typer>=0.21.1",
     "uuid-extension>=0.2.0",
     "uvicorn>=0.40.0",
+    "valkey>=6.1.1",
 ]

@@ -182,7 +182,7 @@ curl -b cookies.txt \
 ### 기타 보안 기능
 - ✅ JWT 기반 인증 (HttpOnly 쿠키)
 - ✅ 비밀번호 해싱 (bcrypt)
-- ✅ Rate Limiting (Redis 기반)
+- ✅ Rate Limiting (Valkey 기반)
 - ✅ 토큰 블랙리스트 (로그아웃 시)
 - ✅ 이메일 인증
 - ✅ 보안 헤더 자동 추가 (CSP, X-Frame-Options, 등)
@@ -300,10 +300,10 @@ CSRF_COOKIE_NAME=csrf_token
 CSRF_HEADER_NAME=X-CSRF-Token
 CSRF_TOKEN_BYTES=32
 
-# Redis (Rate limiting, Token blacklist)
-REDIS_HOST=localhost
-REDIS_PORT=6379
-REDIS_DB=0
+# Valkey (Rate limiting, Token blacklist)
+VALKEY_HOST=localhost
+VALKEY_PORT=6379
+VALKEY_DB=0
 
 # SMTP (Email verification)
 SMTP_HOST=smtp.gmail.com

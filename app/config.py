@@ -37,10 +37,10 @@ class Settings(BaseSettings):
     LOGIN_MAX_ATTEMPTS: int = 5
     LOGIN_ATTEMPT_WINDOW_SECONDS: int = 900
 
-    REDIS_HOST: str = "localhost"
-    REDIS_PORT: int = 6379
-    REDIS_DB: int = 0
-    REDIS_PASSWORD: str = ""
+    VALKEY_HOST: str = "localhost"
+    VALKEY_PORT: int = 6379
+    VALKEY_DB: int = 0
+    VALKEY_PASSWORD: str = ""
 
     TMDB_API_KEY: str = ""  # TMDB API key for fetching movie data
 

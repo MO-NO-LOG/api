@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import ORJSONResponse
+from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.middleware import (
@@ -11,12 +11,12 @@ from app.middleware import (
 )
 from app.routers import admin, auth, file, movies, reviews, user
 
-app = FastAPI(default_response_class=ORJSONResponse)
+app = FastAPI()
 
 
 @app.exception_handler(StarletteHTTPException)
 async def http_exception_handler(request: Request, exc: StarletteHTTPException):
-    return ORJSONResponse(
+    return JSONResponse(
         status_code=exc.status_code,
         content={
             "code": "HTTP_ERROR",
@@ -27,7 +27,7 @@ async def http_exception_handler(request: Request, exc: StarletteHTTPException):
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
-    return ORJSONResponse(
+    return JSONResponse(
         status_code=422,
         content={
             "code": "VALIDATION_ERROR",

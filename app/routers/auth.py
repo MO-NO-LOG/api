@@ -169,7 +169,7 @@ async def login(user_in: UserLogin, response: Response, db: Session = Depends(ge
         data={"sub": str(user.email)}, expires_delta=refresh_token_expires
     )
 
-    # Store refresh token in Redis (async)
+    # Store refresh token in Valkey (async)
     await RefreshTokenService.store_refresh_token(
         email=str(user.email),
         refresh_token=refresh_token,
@@ -247,7 +247,7 @@ async def logout(
     if access_token:
         await TokenBlacklistService.add_to_blacklist(access_token)
 
-    # Delete refresh token from Redis (async)
+    # Delete refresh token from Valkey (async)
     await RefreshTokenService.delete_refresh_token(str(current_user.email))
 
     # Clear refresh_token cookie
@@ -291,7 +291,7 @@ async def refresh_access_token(
         if not email or not isinstance(email, str) or token_type != "refresh":
             raise HTTPException(status_code=401, detail="Invalid refresh token")
 
-        # Verify refresh token against stored token in Redis (async)
+        # Verify refresh token against stored token in Valkey (async)
         if not await RefreshTokenService.verify_refresh_token(email, refresh_token):
             raise HTTPException(
                 status_code=401,
@@ -313,7 +313,7 @@ async def refresh_access_token(
             data={"sub": str(user.email)}, expires_delta=timedelta(days=7)
         )
 
-        # Update refresh token in Redis (async)
+        # Update refresh token in Valkey (async)
         await RefreshTokenService.store_refresh_token(
             email=str(user.email),
             refresh_token=new_refresh_token,

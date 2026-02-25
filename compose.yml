@@ -1,19 +1,22 @@
+name: monolog
+
 services:
   api:
     container_name: monolog-api
-    image: ghcr.io/mo-no-log/api:latest
+    # image: ghcr.io/mo-no-log/api:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
     restart: unless-stopped
     environment:
       TZ: Asia/Seoul
     env_file:
       - .env
     ports:
-      - "8000:8000"
+      - "8000:80"
     depends_on:
       - postgresql
-      - redis
-    networks:
-      - monolog-network
+      - valkey
 
   postgresql:
     container_name: monolog-postgresql
@@ -27,14 +30,10 @@ services:
       POSTGRES_DB: ${DB_NAME}
     volumes:
       - ${DB_DATA}:/var/lib/postgresql/data
-    networks:
-      - monolog-network
 
-  redis:
-    container_name: monolog-redis
-    image: redis:alpine
+  valkey:
+    container_name: monolog-valkey
+    image: valkey/valkey:alpine
     restart: unless-stopped
     environment:
       TZ: Asia/Seoul
-    networks:
-      - monolog-network
