@@ -12,7 +12,7 @@ class UserBase(BaseModel):
 class UserCreate(UserBase):
     password: str
     nickname: str
-    name: str
+    birth_date: Optional[date] = None
     gender: Optional[str] = None
     bio: Optional[str] = None
 
@@ -24,7 +24,7 @@ class UserLogin(UserBase):
 
 class UserResponse(UserBase):
     uid: int
-    name: str
+    birth_date: Optional[date] = None
     nickname: str
     img: Optional[str] = None
     bio: Optional[str] = None
@@ -37,7 +37,7 @@ class UserResponse(UserBase):
 
 
 class UserUpdateRequest(BaseModel):
-    name: Optional[str] = None
+    birth_date: Optional[date] = None
     nickname: Optional[str] = None
     bio: Optional[str] = None
     gender: Optional[str] = None
@@ -176,3 +176,19 @@ class EmailVerificationConfirmRequest(BaseModel):
 
 class EmailVerificationStatusResponse(BaseModel):
     verified: bool
+
+
+# Ranking Schemas
+class MovieRankingItem(BaseModel):
+    rank: int
+    id: int
+    title: str
+    posterUrl: Optional[str] = None
+    genres: List[str] = []
+    averageRating: float
+    releaseDate: Optional[date] = None
+    reviewCount: int
+
+
+class MovieRankingResponse(BaseModel):
+    movies: List[MovieRankingItem]
