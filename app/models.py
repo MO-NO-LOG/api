@@ -20,7 +20,7 @@ class User(Base):
     __tablename__ = "users"
 
     uid = Column(Integer, primary_key=True, index=True)  # User ID
-    name = Column(String(50), nullable=False)  # Real Name
+    birth_date = Column(Date, nullable=True)  # Birth Date
     nickname = Column(
         String(50), unique=True, nullable=False, index=True
     )  # Display Name

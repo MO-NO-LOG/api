@@ -37,7 +37,6 @@ def seed_users(db: Session):
 
     users_data = [
         {
-            "name": "관리자",
             "nickname": "admin",
             "email": "admin@mono-log.com",
             "password": get_password_hash("admin1234"),
@@ -47,7 +46,6 @@ def seed_users(db: Session):
             "is_admin": True,
         },
         {
-            "name": "김영화",
             "nickname": "movie_lover",
             "email": "kim@example.com",
             "password": get_password_hash("password123"),
@@ -57,7 +55,6 @@ def seed_users(db: Session):
             "is_admin": False,
         },
         {
-            "name": "박리뷰",
             "nickname": "reviewer_park",
             "email": "park@example.com",
             "password": get_password_hash("password123"),
@@ -67,7 +64,6 @@ def seed_users(db: Session):
             "is_admin": False,
         },
         {
-            "name": "이시네마",
             "nickname": "cinema_lee",
             "email": "lee@example.com",
             "password": get_password_hash("password123"),
@@ -77,7 +73,6 @@ def seed_users(db: Session):
             "is_admin": False,
         },
         {
-            "name": "최영상",
             "nickname": "film_choi",
             "email": "choi@example.com",
             "password": get_password_hash("password123"),
