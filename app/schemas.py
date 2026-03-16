@@ -58,16 +58,7 @@ class MovieDetailResponse(MovieResponseItem):
     description: Optional[str] = None
 
 
-class MovieDetailRequest(BaseModel):
-    movieId: int
-
-
 # Search Schemas
-class MovieSearchRequest(BaseModel):
-    keyword: str = ""
-    searchType: str = "TITLE"  # TITLE, DIRECTOR, GENRE
-
-
 class MovieSearchResponse(BaseModel):
     movies: List[MovieResponseItem]
     totalPages: int
@@ -255,3 +246,83 @@ class FavoriteItem(BaseModel):
 
 class FavoriteListResponse(BaseModel):
     favorites: List[FavoriteItem]
+
+
+# Admin Schemas
+class AdminUserResponse(BaseModel):
+    uid: int
+    nickname: str
+    email: str
+    img: Optional[str] = None
+    bio: Optional[str] = None
+    gender: Optional[str] = None
+    createdAt: datetime
+    reviewCount: int = 0
+
+    class Config:
+        from_attributes = True
+
+
+class AdminMovieResponse(BaseModel):
+    mid: int
+    title: str
+    director: Optional[str] = None
+    posterUrl: Optional[str] = None
+    releaseDate: Optional[str] = None
+    averageRating: float = 0
+    reviewCount: int = 0
+    createdAt: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class AdminReviewResponse(BaseModel):
+    rid: int
+    userId: int
+    userNickname: str
+    movieId: int
+    movieTitle: str
+    title: Optional[str] = None
+    content: str
+    rating: float
+    createdAt: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class DashboardStats(BaseModel):
+    totalUsers: int
+    totalMovies: int
+    totalReviews: int
+    recentUsers: List[AdminUserResponse]
+    recentReviews: List[AdminReviewResponse]
+
+
+class AdminUserUpdateRequest(BaseModel):
+    nickname: Optional[str] = None
+    email: Optional[str] = None
+    bio: Optional[str] = None
+    gender: Optional[str] = None
+
+
+class AdminMovieCreateRequest(BaseModel):
+    title: str
+    description: Optional[str] = None
+    director: Optional[str] = None
+    posterUrl: Optional[str] = None
+    releaseDate: Optional[str] = None
+    genres: List[str] = []
+
+
+class AdminMovieUpdateRequest(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    director: Optional[str] = None
+    posterUrl: Optional[str] = None
+    releaseDate: Optional[str] = None
+
+
+class TMDBImportRequest(BaseModel):
+    tmdbUrl: str

@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import desc, func
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.database import get_db
 from app.dependencies import get_current_user
@@ -30,6 +30,7 @@ def get_reviews_by_movie(movie_id: int, db: Session = Depends(get_db)):
     reviews = (
         db.query(Review)
         .filter(Review.mid == movie_id)
+        .options(joinedload(Review.user))
         .order_by(desc(Review.created_at))
         .all()
     )
@@ -301,6 +302,10 @@ def list_review_comments(req: CommentListRequest, db: Session = Depends(get_db))
     top_level = (
         db.query(Comment)
         .filter(Comment.rid == req.reviewId, Comment.parent_cid.is_(None))
+        .options(
+            joinedload(Comment.user),
+            joinedload(Comment.replies).joinedload(Comment.user),
+        )
         .order_by(Comment.created_at)
         .all()
     )

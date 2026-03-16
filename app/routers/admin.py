@@ -1,102 +1,28 @@
 import re
-from datetime import datetime
+from datetime import date, datetime
 from typing import List, Optional
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.database import get_db
 from app.dependencies import get_current_user
 from app.models import Genre, Movie, MovieGenre, Review, User
+from app.schemas import (
+    AdminMovieCreateRequest,
+    AdminMovieResponse,
+    AdminMovieUpdateRequest,
+    AdminReviewResponse,
+    AdminUserResponse,
+    AdminUserUpdateRequest,
+    DashboardStats,
+    TMDBImportRequest,
+)
 
 router = APIRouter(prefix="/admin", tags=["admin"])
-
-
-# ─────────────────────────────────────────────
-# Admin Schemas
-# ─────────────────────────────────────────────
-class AdminUserResponse(BaseModel):
-    uid: int
-    name: str
-    nickname: str
-    email: str
-    img: Optional[str] = None
-    bio: Optional[str] = None
-    gender: Optional[str] = None
-    createdAt: datetime
-    reviewCount: int = 0
-
-    class Config:
-        from_attributes = True
-
-
-class AdminMovieResponse(BaseModel):
-    mid: int
-    title: str
-    director: Optional[str] = None
-    posterUrl: Optional[str] = None
-    releaseDate: Optional[str] = None
-    averageRating: float = 0
-    reviewCount: int = 0
-    createdAt: datetime
-
-    class Config:
-        from_attributes = True
-
-
-class AdminReviewResponse(BaseModel):
-    rid: int
-    userId: int
-    userNickname: str
-    movieId: int
-    movieTitle: str
-    title: Optional[str] = None
-    content: str
-    rating: float
-    createdAt: datetime
-
-    class Config:
-        from_attributes = True
-
-
-class DashboardStats(BaseModel):
-    totalUsers: int
-    totalMovies: int
-    totalReviews: int
-    recentUsers: List[AdminUserResponse]
-    recentReviews: List[AdminReviewResponse]
-
-
-class UserUpdateRequest(BaseModel):
-    name: Optional[str] = None
-    nickname: Optional[str] = None
-    email: Optional[str] = None
-    bio: Optional[str] = None
-    gender: Optional[str] = None
-
-
-class MovieCreateRequest(BaseModel):
-    title: str
-    description: Optional[str] = None
-    director: Optional[str] = None
-    posterUrl: Optional[str] = None
-    releaseDate: Optional[str] = None
-    genres: List[str] = []
-
-
-class MovieUpdateRequest(BaseModel):
-    title: Optional[str] = None
-    description: Optional[str] = None
-    director: Optional[str] = None
-    posterUrl: Optional[str] = None
-    releaseDate: Optional[str] = None
-
-
-class TMDBMovieRequest(BaseModel):
-    tmdbUrl: str
 
 
 # ─────────────────────────────────────────────
@@ -122,24 +48,32 @@ def get_dashboard_stats(
     total_movies = db.query(Movie).count()
     total_reviews = db.query(Review).count()
 
-    # Recent users
-    recent_users_raw = db.query(User).order_by(User.created_at.desc()).limit(5).all()
-    recent_users = []
-    for u in recent_users_raw:
-        review_count = db.query(Review).filter(Review.uid == u.uid).count()
-        recent_users.append(
-            AdminUserResponse(
-                uid=u.uid,
-                name=u.name,
-                nickname=u.nickname,
-                email=u.email,
-                img=u.img,
-                bio=u.bio,
-                gender=u.gender,
-                createdAt=u.created_at,
-                reviewCount=review_count,
-            )
+    # Recent users — review_count를 서브쿼리로 한 번에 조회
+    review_count_sq = (
+        db.query(Review.uid, func.count(Review.rid).label("cnt"))
+        .group_by(Review.uid)
+        .subquery()
+    )
+    recent_users_raw = (
+        db.query(User, func.coalesce(review_count_sq.c.cnt, 0).label("review_count"))
+        .outerjoin(review_count_sq, User.uid == review_count_sq.c.uid)
+        .order_by(User.created_at.desc())
+        .limit(5)
+        .all()
+    )
+    recent_users = [
+        AdminUserResponse(
+            uid=u.uid,
+            nickname=u.nickname,
+            email=u.email,
+            img=u.img,
+            bio=u.bio,
+            gender=u.gender,
+            createdAt=u.created_at,
+            reviewCount=review_count,
         )
+        for u, review_count in recent_users_raw
+    ]
 
     # Recent reviews
     recent_reviews_raw = (
@@ -186,27 +120,33 @@ def get_all_users(
     admin: User = Depends(require_admin),
 ):
     offset = (page - 1) * size
-    users = (
-        db.query(User).order_by(User.created_at.desc()).offset(offset).limit(size).all()
+    review_count_sq = (
+        db.query(Review.uid, func.count(Review.rid).label("cnt"))
+        .group_by(Review.uid)
+        .subquery()
+    )
+    rows = (
+        db.query(User, func.coalesce(review_count_sq.c.cnt, 0).label("review_count"))
+        .outerjoin(review_count_sq, User.uid == review_count_sq.c.uid)
+        .order_by(User.created_at.desc())
+        .offset(offset)
+        .limit(size)
+        .all()
     )
 
-    result = []
-    for u in users:
-        review_count = db.query(Review).filter(Review.uid == u.uid).count()
-        result.append(
-            AdminUserResponse(
-                uid=u.uid,
-                name=u.name,
-                nickname=u.nickname,
-                email=u.email,
-                img=u.img,
-                bio=u.bio,
-                gender=u.gender,
-                createdAt=u.created_at,
-                reviewCount=review_count,
-            )
+    return [
+        AdminUserResponse(
+            uid=u.uid,
+            nickname=u.nickname,
+            email=u.email,
+            img=u.img,
+            bio=u.bio,
+            gender=u.gender,
+            createdAt=u.created_at,
+            reviewCount=review_count,
         )
-    return result
+        for u, review_count in rows
+    ]
 
 
 @router.get("/users/{user_id}", response_model=AdminUserResponse)
@@ -220,7 +160,6 @@ def get_user_detail(
     review_count = db.query(Review).filter(Review.uid == user.uid).count()
     return AdminUserResponse(
         uid=user.uid,
-        name=user.name,
         nickname=user.nickname,
         email=user.email,
         img=user.img,
@@ -234,7 +173,7 @@ def get_user_detail(
 @router.put("/users/{user_id}")
 def update_user(
     user_id: int,
-    data: UserUpdateRequest,
+    data: AdminUserUpdateRequest,
     db: Session = Depends(get_db),
     admin: User = Depends(require_admin),
 ):
@@ -242,8 +181,6 @@ def update_user(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    if data.name is not None:
-        user.name = data.name
     if data.nickname is not None:
         user.nickname = data.nickname
     if data.email is not None:
@@ -285,44 +222,45 @@ def get_all_movies(
     admin: User = Depends(require_admin),
 ):
     offset = (page - 1) * size
-    movies = (
-        db.query(Movie)
+    review_count_sq = (
+        db.query(Review.mid, func.count(Review.rid).label("cnt"))
+        .group_by(Review.mid)
+        .subquery()
+    )
+    rows = (
+        db.query(Movie, func.coalesce(review_count_sq.c.cnt, 0).label("review_count"))
+        .outerjoin(review_count_sq, Movie.mid == review_count_sq.c.mid)
         .order_by(Movie.created_at.desc())
         .offset(offset)
         .limit(size)
         .all()
     )
 
-    result = []
-    for m in movies:
-        review_count = db.query(Review).filter(Review.mid == m.mid).count()
-        result.append(
-            AdminMovieResponse(
-                mid=m.mid,
-                title=m.title,
-                director=m.director,
-                posterUrl=m.poster_url,
-                releaseDate=str(m.release_date) if m.release_date else None,
-                averageRating=float(m.rat) if m.rat else 0,
-                reviewCount=review_count,
-                createdAt=m.created_at,
-            )
+    return [
+        AdminMovieResponse(
+            mid=m.mid,
+            title=m.title,
+            director=m.director,
+            posterUrl=m.poster_url,
+            releaseDate=str(m.release_date) if m.release_date else None,
+            averageRating=float(m.rat) if m.rat else 0,
+            reviewCount=review_count,
+            createdAt=m.created_at,
         )
-    return result
+        for m, review_count in rows
+    ]
 
 
 @router.post("/movies")
 def create_movie(
-    data: MovieCreateRequest,
+    data: AdminMovieCreateRequest,
     db: Session = Depends(get_db),
     admin: User = Depends(require_admin),
 ):
-    from datetime import date as date_type
-
     release_date = None
     if data.releaseDate:
         try:
-            release_date = date_type.fromisoformat(data.releaseDate)
+            release_date = date.fromisoformat(data.releaseDate)
         except ValueError:
             pass
 
@@ -356,7 +294,7 @@ def create_movie(
 @router.put("/movies/{movie_id}")
 def update_movie(
     movie_id: int,
-    data: MovieUpdateRequest,
+    data: AdminMovieUpdateRequest,
     db: Session = Depends(get_db),
     admin: User = Depends(require_admin),
 ):
@@ -373,10 +311,8 @@ def update_movie(
     if data.posterUrl is not None:
         movie.poster_url = data.posterUrl
     if data.releaseDate is not None:
-        from datetime import date as date_type
-
         try:
-            movie.release_date = date_type.fromisoformat(data.releaseDate)
+            movie.release_date = date.fromisoformat(data.releaseDate)
         except ValueError:
             pass
 
@@ -454,7 +390,7 @@ def delete_review(
 # ─────────────────────────────────────────────
 @router.post("/movies/import-tmdb")
 async def import_movie_from_tmdb(
-    request: TMDBMovieRequest,
+    request: TMDBImportRequest,
     db: Session = Depends(get_db),
     admin: User = Depends(require_admin),
 ):

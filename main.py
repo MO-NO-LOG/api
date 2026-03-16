@@ -133,14 +133,12 @@ def db_seed() -> None:
 
 @user_app.command("create")
 def user_create(
-    name: Optional[str] = typer.Argument(None, help="이름"),
     nickname: Optional[str] = typer.Argument(None, help="닉네임"),
     email: Optional[str] = typer.Argument(None, help="이메일"),
     password: Optional[str] = typer.Option(None, help="비밀번호"),
     gender: Optional[str] = typer.Option(None, help="성별 (M/F)"),
 ) -> None:
     """Create a regular user."""
-    name = name or typer.prompt("Name")
     nickname = nickname or typer.prompt("Nickname")
     email = email or typer.prompt("Email")
     password = password or typer.prompt(
@@ -160,7 +158,7 @@ def user_create(
 
     from scripts.make_user import make_user
 
-    make_user(name, nickname, email, password, gender)
+    make_user(nickname, email, password, gender)
 
 
 @user_app.command("promote")

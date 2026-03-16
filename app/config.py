@@ -11,12 +11,12 @@ class Settings(BaseSettings):
     DB_NAME: str
     DB_DATA: str
 
-    SECRET_KEY: str = "supersecretkey"  # Default for dev, change in prod
+    SECRET_KEY: str  # Must be set via environment variable; no default allowed
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
-    COOKIE_SECURE: bool = False
+    COOKIE_SECURE: bool = False  # Set True in production (HTTPS required)
     COOKIE_SAMESITE: str = "lax"
     COOKIE_DOMAIN: Optional[str] = None
     COOKIE_PATH: str = "/"
@@ -24,7 +24,7 @@ class Settings(BaseSettings):
 
     REFRESH_TOKEN_COOKIE_NAME: str = "refresh_token"
     REFRESH_TOKEN_COOKIE_HTTPONLY: bool = True
-    REFRESH_TOKEN_COOKIE_SECURE: bool = False
+    REFRESH_TOKEN_COOKIE_SECURE: bool = False  # Set True in production (HTTPS required)
     REFRESH_TOKEN_COOKIE_SAMESITE: str = "lax"
 
     CSRF_COOKIE_NAME: str = "csrf_token"

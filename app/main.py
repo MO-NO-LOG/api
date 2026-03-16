@@ -37,7 +37,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     )
 
 
-# app.add_middleware(SecurityHeadersMiddleware)  # ty:ignore[invalid-argument-type]
+app.add_middleware(SecurityHeadersMiddleware)  # ty:ignore[invalid-argument-type]
 app.add_middleware(RateLimitMiddleware)  # ty:ignore[invalid-argument-type]
 app.add_middleware(CsrfMiddleware)  # ty:ignore[invalid-argument-type]
 
