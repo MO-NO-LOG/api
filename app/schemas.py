@@ -192,3 +192,66 @@ class MovieRankingItem(BaseModel):
 
 class MovieRankingResponse(BaseModel):
     movies: List[MovieRankingItem]
+
+
+# Comment Schemas
+class CommentReplyItem(BaseModel):
+    commentId: int
+    reviewId: int
+    userId: int
+    userNickname: str
+    content: str
+    createdAt: datetime
+
+
+class CommentListItem(BaseModel):
+    commentId: int
+    reviewId: int
+    userId: int
+    userNickname: str
+    content: str
+    createdAt: datetime
+    replies: List[CommentReplyItem] = []
+
+
+class CommentListResponse(BaseModel):
+    comments: List[CommentListItem]
+
+
+class CommentListRequest(BaseModel):
+    reviewId: int
+
+
+class ReplyCreateRequest(BaseModel):
+    commentId: int
+    content: str
+
+
+class ReplyCreateResponse(BaseModel):
+    commentId: int
+    parentCommentId: int
+    reviewId: int
+    userId: int
+    userNickname: str
+    content: str
+    createdAt: datetime
+
+
+class ReplyDeleteRequest(BaseModel):
+    commentId: int
+
+
+# Favorite Schemas
+class FavoriteToggleRequest(BaseModel):
+    movieId: int
+
+
+class FavoriteItem(BaseModel):
+    movieId: int
+    title: str
+    posterUrl: Optional[str] = None
+    createdAt: datetime
+
+
+class FavoriteListResponse(BaseModel):
+    favorites: List[FavoriteItem]

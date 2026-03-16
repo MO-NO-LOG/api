@@ -6,6 +6,8 @@ from app.database import get_db
 from app.dependencies import get_current_user
 from app.models import Comment, Review, ReviewLike, User
 from app.schemas import (
+    CommentListRequest,
+    CommentListResponse,
     ReviewCommentCreateRequest,
     ReviewCommentCreateResponse,
     ReviewCommentDeleteRequest,
@@ -15,6 +17,9 @@ from app.schemas import (
     ReviewReactionCancelRequest,
     ReviewReactionRequest,
     ReviewResponseItem,
+    ReplyCreateRequest,
+    ReplyCreateResponse,
+    ReplyDeleteRequest,
 )
 
 router = APIRouter(prefix="/reviews", tags=["reviews"])
@@ -285,3 +290,103 @@ def delete_review_comment(
     db.commit()
 
     return {"message": "Comment deleted", "commentId": req.commentId}
+
+
+@router.post("/comment/list", response_model=CommentListResponse)
+def list_review_comments(req: CommentListRequest, db: Session = Depends(get_db)):
+    review = db.query(Review).filter(Review.rid == req.reviewId).first()
+    if not review:
+        raise HTTPException(status_code=404, detail="Review not found")
+
+    top_level = (
+        db.query(Comment)
+        .filter(Comment.rid == req.reviewId, Comment.parent_cid.is_(None))
+        .order_by(Comment.created_at)
+        .all()
+    )
+
+    result = []
+    for c in top_level:
+        replies = []
+        for r in sorted(c.replies, key=lambda x: x.created_at):
+            replies.append(
+                {
+                    "commentId": r.cid,
+                    "reviewId": r.rid,
+                    "userId": r.uid,
+                    "userNickname": r.user.nickname if r.user else "Unknown",
+                    "content": r.dec,
+                    "createdAt": r.created_at,
+                }
+            )
+        result.append(
+            {
+                "commentId": c.cid,
+                "reviewId": c.rid,
+                "userId": c.uid,
+                "userNickname": c.user.nickname if c.user else "Unknown",
+                "content": c.dec,
+                "createdAt": c.created_at,
+                "replies": replies,
+            }
+        )
+
+    return {"comments": result}
+
+
+@router.post("/comment/reply/create", response_model=ReplyCreateResponse)
+def create_reply(
+    req: ReplyCreateRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    parent = db.query(Comment).filter(Comment.cid == req.commentId).first()
+    if not parent:
+        raise HTTPException(status_code=404, detail="Comment not found")
+
+    if parent.parent_cid is not None:
+        raise HTTPException(
+            status_code=400, detail="Cannot reply to a reply (max depth: 1)"
+        )
+
+    new_reply = Comment(
+        rid=parent.rid,
+        uid=current_user.uid,
+        dec=req.content,
+        parent_cid=parent.cid,
+    )
+    db.add(new_reply)
+    db.commit()
+    db.refresh(new_reply)
+
+    return ReplyCreateResponse(
+        commentId=new_reply.cid,
+        parentCommentId=parent.cid,
+        reviewId=new_reply.rid,
+        userId=current_user.uid,
+        userNickname=current_user.nickname,
+        content=new_reply.dec,
+        createdAt=new_reply.created_at,
+    )
+
+
+@router.post("/comment/reply/delete")
+def delete_reply(
+    req: ReplyDeleteRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    reply = db.query(Comment).filter(Comment.cid == req.commentId).first()
+    if not reply:
+        raise HTTPException(status_code=404, detail="Reply not found")
+
+    if reply.parent_cid is None:
+        raise HTTPException(status_code=400, detail="Target is not a reply")
+
+    if reply.uid != current_user.uid and not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="Not allowed to delete this reply")
+
+    db.delete(reply)
+    db.commit()
+
+    return {"message": "Reply deleted", "commentId": req.commentId}

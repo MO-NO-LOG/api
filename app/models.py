@@ -9,6 +9,7 @@ from sqlalchemy import (
     Numeric,
     String,
     Text,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -122,11 +123,20 @@ class Comment(Base):
         DateTime(timezone=True), server_default=func.now()
     )  # Comment Creation Timestamp
 
+    parent_cid = Column(
+        Integer, ForeignKey("comment.cid", ondelete="CASCADE"), nullable=True
+    )  # Parent Comment ID (null = top-level comment)
+
     review = relationship("Review", back_populates="comments")  # Associated Review
     user = relationship("User", back_populates="comments")  # Comment Author
     likes = relationship(
         "CommentLike", back_populates="comment"
     )  # Comment Likes/Dislikes
+    replies = relationship(
+        "Comment",
+        backref="parent",
+        foreign_keys="Comment.parent_cid",
+    )  # Replies to this comment
 
 
 class ReviewLike(Base):
@@ -163,3 +173,23 @@ class CommentLike(Base):
     )  # Comment Like Creation Timestamp
 
     comment = relationship("Comment", back_populates="likes")  # Associated Comment
+
+
+class Favorite(Base):
+    __tablename__ = "favorite"
+
+    fid = Column(Integer, primary_key=True, index=True)  # Favorite ID
+    uid = Column(
+        Integer, ForeignKey("users.uid", ondelete="CASCADE"), nullable=False
+    )  # User ID
+    mid = Column(
+        Integer, ForeignKey("movie.mid", ondelete="CASCADE"), nullable=False
+    )  # Movie ID
+    created_at = Column(
+        DateTime(timezone=True), server_default=func.now()
+    )  # Favorite Creation Timestamp
+
+    __table_args__ = (UniqueConstraint("uid", "mid", name="uq_favorite_user_movie"),)
+
+    user = relationship("User")  # User who favorited
+    movie = relationship("Movie")  # Favorited Movie

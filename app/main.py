@@ -9,7 +9,7 @@ from app.middleware import (
     RateLimitMiddleware,
     SecurityHeadersMiddleware,
 )
-from app.routers import admin, auth, file, movies, ranking, reviews, user
+from app.routers import admin, auth, favorites, file, movies, ranking, reviews, user
 
 app = FastAPI()
 
@@ -66,6 +66,7 @@ app.include_router(ranking.router, prefix="/api")
 app.include_router(admin.router, prefix="/api")
 app.include_router(user.router, prefix="/api")
 app.include_router(file.router, prefix="/api")
+app.include_router(favorites.router, prefix="/api")
 
 
 @app.get("/")
