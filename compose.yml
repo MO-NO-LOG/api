@@ -35,5 +35,7 @@ services:
     container_name: monolog-valkey
     image: valkey/valkey:alpine
     restart: unless-stopped
+    sysctls:
+      - vm.overcommit_memory=1
     environment:
       TZ: Asia/Seoul
