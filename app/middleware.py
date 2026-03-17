@@ -187,7 +187,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             "base-uri 'self'",
             "form-action 'self'",
         ]
-        response.headers["Content-Security-Policy"] = "; ".join(csp_directives)
+        # response.headers["Content-Security-Policy"] = "; ".join(csp_directives)
 
         # Referrer Policy
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
