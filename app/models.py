@@ -136,6 +136,7 @@ class Comment(Base):
         "Comment",
         backref="parent",
         foreign_keys="Comment.parent_cid",
+        remote_side="Comment.cid",
     )  # Replies to this comment
 
 
