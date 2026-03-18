@@ -52,6 +52,7 @@ app.add_middleware(
         "http://localhost:3000",
         "https://api.mono-log.fun",
         "https://mono-log.fun",
+	"https://piece-rick-serves-pointing.trycloudflare.com"
     ],
     allow_credentials=True,
     allow_methods=["*"],
