@@ -11,7 +11,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
 )
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import backref, relationship
 from sqlalchemy.sql import func
 
 from .database import Base
@@ -134,9 +134,8 @@ class Comment(Base):
     )  # Comment Likes/Dislikes
     replies = relationship(
         "Comment",
-        backref="parent",
         foreign_keys="Comment.parent_cid",
-        remote_side="Comment.cid",
+        backref=backref("parent", remote_side=[cid], uselist=False),
     )  # Replies to this comment
 
 
