@@ -1,3 +1,7 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "mono-log-api"
 version = "0.1.0"
@@ -26,3 +30,12 @@ dependencies = [
     "uvicorn>=0.40.0",
     "valkey>=6.1.1",
 ]
+
+[project.scripts]
+mono-log = "main:app"
+
+[tool.setuptools]
+py-modules = ["main"]
+
+[tool.setuptools.packages.find]
+include = ["app", "app.*", "scripts", "scripts.*"]
