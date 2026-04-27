@@ -1,147 +1,134 @@
 <!doctype html>
 <html lang="ko">
-    <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>MONOLOG 이메일 인증</title>
-    </head>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MONOLOG 이메일 인증</title>
+  </head>
 
-    <body
-        style="
-            margin: 0;
-            padding: 0;
-            background: #000000;
-            font-family:
-                &quot;Pretendard&quot;, Arial, &quot;Apple SD Gothic Neo&quot;,
-                &quot;Noto Sans KR&quot;, sans-serif;
-            color: #ffffff;
-        "
+  <body
+    style="
+      margin: 0;
+      padding: 0;
+      background: #000000;
+      font-family:
+        &quot;Pretendard&quot;, Arial, &quot;Apple SD Gothic Neo&quot;,
+        &quot;Noto Sans KR&quot;, sans-serif;
+      color: #ffffff;
+    "
+  >
+    <table
+      role="presentation"
+      width="100%"
+      cellpadding="0"
+      cellspacing="0"
+      style="background: #000000; padding: 40px 0"
     >
-        <table
+      <tr>
+        <td align="center">
+          <table
             role="presentation"
-            width="100%"
+            width="560"
             cellpadding="0"
             cellspacing="0"
-            style="background: #000000; padding: 40px 0"
-        >
+            style="
+              background: #1e1e1e;
+              border-radius: 12px;
+              border: 1px solid #333333;
+              overflow: hidden;
+            "
+          >
+            <!-- Header -->
             <tr>
-                <td align="center">
-                    <table
-                        role="presentation"
-                        width="560"
-                        cellpadding="0"
-                        cellspacing="0"
-                        style="
-                            background: #1e1e1e;
-                            border-radius: 12px;
-                            border: 1px solid #333333;
-                            overflow: hidden;
-                        "
-                    >
-                        <!-- Header -->
-                        <tr>
-                            <td
-                                style="
-                                    padding: 24px 32px;
-                                    background: rgba(10, 15, 30, 0.9);
-                                    border-bottom: 1px solid #333333;
-                                "
-                            >
-                                <h1
-                                    style="
-                                        margin: 0;
-                                        font-size: 24px;
-                                        font-weight: 700;
-                                        letter-spacing: 1.5px;
-                                        color: #ffffff;
-                                    "
-                                >
-                                    MONOLOG
-                                </h1>
-                            </td>
-                        </tr>
-                        <!-- Content -->
-                        <tr>
-                            <td style="padding: 40px 32px">
-                                <h2
-                                    style="
-                                        margin: 0 0 16px;
-                                        font-size: 20px;
-                                        font-weight: 700;
-                                        color: #ffffff;
-                                    "
-                                >
-                                    이메일 인증
-                                </h2>
-                                <p
-                                    style="
-                                        margin: 0 0 32px;
-                                        font-size: 15px;
-                                        line-height: 1.6;
-                                        color: #cccccc;
-                                    "
-                                >
-                                    안녕하세요.<br />
-                                    요청하신 이메일 인증 코드를 보내드립니다.<br />
-                                    아래 인증 코드를 입력하여 본인 인증을 완료해
-                                    주세요.
-                                </p>
-
-                                <div
-                                    style="
-                                        background: #0a0f1e;
-                                        border: 1px solid #4f7cff;
-                                        border-radius: 8px;
-                                        padding: 24px;
-                                        text-align: center;
-                                        letter-spacing: 4px;
-                                        margin-bottom: 32px;
-                                    "
-                                >
-                                    <span
-                                        style="
-                                            font-size: 32px;
-                                            font-weight: 700;
-                                            color: #4f7cff;
-                                        "
-                                    >
-                                        {{code}}
-                                    </span>
-                                </div>
-
-                                <p
-                                    style="
-                                        margin: 0;
-                                        font-size: 13px;
-                                        color: #888888;
-                                    "
-                                >
-                                    * 이 코드는
-                                    <strong>{{ttl_minutes}}분</strong> 후
-                                    만료됩니다.<br />
-                                    * 본인이 요청하지 않았다면 이 메일을 무시해
-                                    주세요.
-                                </p>
-                            </td>
-                        </tr>
-                        <!-- Footer -->
-                        <tr>
-                            <td
-                                style="
-                                    padding: 24px 32px;
-                                    background: #151515;
-                                    border-top: 1px solid #333333;
-                                    color: #666666;
-                                    font-size: 12px;
-                                    text-align: center;
-                                "
-                            >
-                                &copy; MONOLOG. All Rights Reserved.
-                            </td>
-                        </tr>
-                    </table>
-                </td>
+              <td
+                style="
+                  padding: 24px 32px;
+                  background: rgba(10, 15, 30, 0.9);
+                  border-bottom: 1px solid #333333;
+                "
+              >
+                <h1
+                  style="
+                    margin: 0;
+                    font-size: 24px;
+                    font-weight: 700;
+                    letter-spacing: 1.5px;
+                    color: #ffffff;
+                  "
+                >
+                  MONOLOG
+                </h1>
+              </td>
             </tr>
-        </table>
-    </body>
+            <!-- Content -->
+            <tr>
+              <td style="padding: 40px 32px">
+                <h2
+                  style="
+                    margin: 0 0 16px;
+                    font-size: 20px;
+                    font-weight: 700;
+                    color: #ffffff;
+                  "
+                >
+                  이메일 인증
+                </h2>
+                <p
+                  style="
+                    margin: 0 0 32px;
+                    font-size: 15px;
+                    line-height: 1.6;
+                    color: #cccccc;
+                  "
+                >
+                  안녕하세요.<br />
+                  요청하신 이메일 인증 코드를 보내드립니다.<br />
+                  아래 인증 코드를 입력하여 본인 인증을 완료해 주세요.
+                </p>
+
+                <div
+                  style="
+                    background: #0a0f1e;
+                    border: 1px solid #4f7cff;
+                    border-radius: 8px;
+                    padding: 24px;
+                    text-align: center;
+                    letter-spacing: 4px;
+                    margin-bottom: 32px;
+                  "
+                >
+                  <span
+                    style="font-size: 32px; font-weight: 700; color: #4f7cff"
+                  >
+                    {{code}}
+                  </span>
+                </div>
+
+                <p style="margin: 0; font-size: 13px; color: #888888">
+                  * 이 코드는
+                  <strong>{{ttl_minutes}}분</strong> 후 만료됩니다.<br />
+                  * 본인이 요청하지 않았다면 이 메일을 무시해 주세요.
+                </p>
+              </td>
+            </tr>
+            <!-- Footer -->
+            <tr>
+              <td
+                style="
+                  padding: 24px 32px;
+                  background: #151515;
+                  border-top: 1px solid #333333;
+                  color: #666666;
+                  font-size: 12px;
+                  text-align: center;
+                "
+              >
+                &copy; MONOLOG. All Rights Reserved.
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
 </html>
