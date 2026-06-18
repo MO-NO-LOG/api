@@ -24,6 +24,7 @@ from app.security import (
     generate_csrf_token,
     set_csrf_cookie,
 )
+from app.schemas import EmailVerificationSettingsResponse
 from app.services.email_verification_service import EmailVerificationService
 from app.services.rate_limit_service import LoginAttemptService
 from app.services.system_settings_service import SystemSettingsService
@@ -73,6 +74,12 @@ async def register(user: UserCreate, db: Session = Depends(get_db)):
         await EmailVerificationService.clear_email_verified(user.email)
 
     return new_user
+
+
+@router.get("/verify-email/enabled", response_model=EmailVerificationSettingsResponse)
+async def is_email_verification_enabled():
+    enabled = await SystemSettingsService.is_email_verification_enabled()
+    return EmailVerificationSettingsResponse(enabled=enabled)
 
 
 @router.post("/verify-email/send")
