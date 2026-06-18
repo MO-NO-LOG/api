@@ -326,3 +326,11 @@ class AdminMovieUpdateRequest(BaseModel):
 
 class TMDBImportRequest(BaseModel):
     tmdbUrl: str
+
+
+class EmailVerificationSettingsResponse(BaseModel):
+    enabled: bool
+
+
+class EmailVerificationSettingsUpdateRequest(BaseModel):
+    enabled: bool

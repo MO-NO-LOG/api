@@ -19,6 +19,8 @@ from app.schemas import (
     AdminUserResponse,
     AdminUserUpdateRequest,
     DashboardStats,
+    EmailVerificationSettingsResponse,
+    EmailVerificationSettingsUpdateRequest,
     TMDBImportRequest,
 )
 
@@ -554,3 +556,28 @@ async def import_movie_from_tmdb(
         raise HTTPException(
             status_code=500, detail=f"Failed to import content: {str(e)}"
         )
+
+
+# ─────────────────────────────────────────────
+# System Settings
+# ─────────────────────────────────────────────
+from app.services.system_settings_service import SystemSettingsService
+
+
+@router.get("/settings/email-verification", response_model=EmailVerificationSettingsResponse)
+async def get_email_verification_setting(
+    admin: User = Depends(require_admin),
+):
+    enabled = await SystemSettingsService.is_email_verification_enabled()
+    return EmailVerificationSettingsResponse(enabled=enabled)
+
+
+@router.put("/settings/email-verification")
+async def update_email_verification_setting(
+    data: EmailVerificationSettingsUpdateRequest,
+    admin: User = Depends(require_admin),
+):
+    success = await SystemSettingsService.set_email_verification_enabled(data.enabled)
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to update setting")
+    return {"message": "Email verification setting updated", "enabled": data.enabled}

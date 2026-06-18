@@ -26,6 +26,7 @@ from app.security import (
 )
 from app.services.email_verification_service import EmailVerificationService
 from app.services.rate_limit_service import LoginAttemptService
+from app.services.system_settings_service import SystemSettingsService
 from app.services.token_service import RefreshTokenService, TokenBlacklistService
 from app.utils import (
     create_access_token,
@@ -40,7 +41,8 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 @router.post("/register", response_model=UserResponse)
 async def register(user: UserCreate, db: Session = Depends(get_db)):
-    if not await EmailVerificationService.is_email_verified(user.email):
+    email_verification_enabled = await SystemSettingsService.is_email_verification_enabled()
+    if email_verification_enabled and not await EmailVerificationService.is_email_verified(user.email):
         raise HTTPException(status_code=400, detail="Email verification required")
 
     db_user = db.query(User).filter(User.email == user.email).first()
@@ -67,7 +69,8 @@ async def register(user: UserCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(new_user)
 
-    await EmailVerificationService.clear_email_verified(user.email)
+    if email_verification_enabled:
+        await EmailVerificationService.clear_email_verified(user.email)
 
     return new_user
 

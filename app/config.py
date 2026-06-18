@@ -53,6 +53,7 @@ class Settings(BaseSettings):
     SMTP_USE_SSL: bool = False
 
     EMAIL_VERIFICATION_TTL_MINUTES: int = 10
+    EMAIL_VERIFICATION_ENABLED: bool = True
 
     # S3 Storage Configuration (compatible with AWS S3, MinIO, Cloudflare R2, etc.)
     S3_ENDPOINT_URL: Optional[str] = (
