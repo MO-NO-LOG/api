@@ -330,6 +330,13 @@ def delete_movie(
     if not movie:
         raise HTTPException(status_code=404, detail="Movie not found")
 
+    # 영화와 연결된 MovieGenre 레코드 먼저 삭제
+    db.query(MovieGenre).filter(MovieGenre.mid == movie_id).delete()
+    # 영화와 연결된 Review 레코드 먼저 삭제
+    db.query(Review).filter(Review.mid == movie_id).delete()
+    # 영화와 연결된 Favorite 레코드 먼저 삭제
+    db.query(Favorite).filter(Favorite.mid == movie_id).delete()
+
     db.delete(movie)
     db.commit()
     return {"message": "Movie deleted successfully"}
