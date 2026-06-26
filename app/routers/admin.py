@@ -1,6 +1,5 @@
 import re
-from datetime import date, datetime
-from typing import List, Optional
+from typing import List
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -23,15 +22,13 @@ from app.schemas import (
     EmailVerificationSettingsUpdateRequest,
     TMDBImportRequest,
 )
+from app.services.system_settings_service import SystemSettingsService
+from app.utils import parse_release_date, review_count_subquery
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
 
-# ─────────────────────────────────────────────
-# Admin Check Helper
-# ─────────────────────────────────────────────
 def require_admin(current_user: User = Depends(get_current_user)):
-    # User 모델의 is_admin 필드로 관리자 여부 판단
     if not current_user.is_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required"
@@ -39,9 +36,14 @@ def require_admin(current_user: User = Depends(get_current_user)):
     return current_user
 
 
-# ─────────────────────────────────────────────
-# Dashboard
-# ─────────────────────────────────────────────
+def _get_or_create_genre(db: Session, name: str) -> Genre:
+    genre = db.query(Genre).filter(Genre.name == name).first()
+    if not genre:
+        genre = Genre(name=name)
+        db.add(genre)
+    return genre
+
+
 @router.get("/dashboard", response_model=DashboardStats)
 def get_dashboard_stats(
     db: Session = Depends(get_db), admin: User = Depends(require_admin)
@@ -50,12 +52,7 @@ def get_dashboard_stats(
     total_movies = db.query(Movie).count()
     total_reviews = db.query(Review).count()
 
-    # Recent users — review_count를 서브쿼리로 한 번에 조회
-    review_count_sq = (
-        db.query(Review.uid, func.count(Review.rid).label("cnt"))
-        .group_by(Review.uid)
-        .subquery()
-    )
+    review_count_sq = review_count_subquery(db)
     recent_users_raw = (
         db.query(User, func.coalesce(review_count_sq.c.cnt, 0).label("review_count"))
         .outerjoin(review_count_sq, User.uid == review_count_sq.c.uid)
@@ -64,20 +61,10 @@ def get_dashboard_stats(
         .all()
     )
     recent_users = [
-        AdminUserResponse(
-            uid=u.uid,
-            nickname=u.nickname,
-            email=u.email,
-            img=u.img,
-            bio=u.bio,
-            gender=u.gender,
-            createdAt=u.created_at,
-            reviewCount=review_count,
-        )
+        AdminUserResponse.from_user(u, int(review_count))
         for u, review_count in recent_users_raw
     ]
 
-    # Recent reviews
     recent_reviews_raw = (
         db.query(Review, User, Movie)
         .join(User, Review.uid == User.uid)
@@ -86,21 +73,9 @@ def get_dashboard_stats(
         .limit(5)
         .all()
     )
-    recent_reviews = []
-    for r, u, m in recent_reviews_raw:
-        recent_reviews.append(
-            AdminReviewResponse(
-                rid=r.rid,
-                userId=u.uid,
-                userNickname=u.nickname,
-                movieId=m.mid,
-                movieTitle=m.title,
-                title=r.title,
-                content=r.dec,
-                rating=float(r.rat) if r.rat else 0,
-                createdAt=r.created_at,
-            )
-        )
+    recent_reviews = [
+        AdminReviewResponse.from_review(r, u, m) for r, u, m in recent_reviews_raw
+    ]
 
     return DashboardStats(
         totalUsers=total_users,
@@ -111,9 +86,6 @@ def get_dashboard_stats(
     )
 
 
-# ─────────────────────────────────────────────
-# User Management
-# ─────────────────────────────────────────────
 @router.get("/users", response_model=List[AdminUserResponse])
 def get_all_users(
     page: int = 1,
@@ -122,11 +94,7 @@ def get_all_users(
     admin: User = Depends(require_admin),
 ):
     offset = (page - 1) * size
-    review_count_sq = (
-        db.query(Review.uid, func.count(Review.rid).label("cnt"))
-        .group_by(Review.uid)
-        .subquery()
-    )
+    review_count_sq = review_count_subquery(db)
     rows = (
         db.query(User, func.coalesce(review_count_sq.c.cnt, 0).label("review_count"))
         .outerjoin(review_count_sq, User.uid == review_count_sq.c.uid)
@@ -137,16 +105,7 @@ def get_all_users(
     )
 
     return [
-        AdminUserResponse(
-            uid=u.uid,
-            nickname=u.nickname,
-            email=u.email,
-            img=u.img,
-            bio=u.bio,
-            gender=u.gender,
-            createdAt=u.created_at,
-            reviewCount=review_count,
-        )
+        AdminUserResponse.from_user(u, int(review_count))
         for u, review_count in rows
     ]
 
@@ -160,16 +119,7 @@ def get_user_detail(
         raise HTTPException(status_code=404, detail="User not found")
 
     review_count = db.query(Review).filter(Review.uid == user.uid).count()
-    return AdminUserResponse(
-        uid=user.uid,
-        nickname=user.nickname,
-        email=user.email,
-        img=user.img,
-        bio=user.bio,
-        gender=user.gender,
-        createdAt=user.created_at,
-        reviewCount=review_count,
-    )
+    return AdminUserResponse.from_user(user, review_count)
 
 
 @router.put("/users/{user_id}")
@@ -183,14 +133,8 @@ def update_user(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    if data.nickname is not None:
-        user.nickname = data.nickname
-    if data.email is not None:
-        user.email = data.email
-    if data.bio is not None:
-        user.bio = data.bio
-    if data.gender is not None:
-        user.gender = data.gender
+    for key, value in data.model_dump(exclude_unset=True).items():
+        setattr(user, key, value)
 
     db.commit()
     return {"message": "User updated successfully"}
@@ -204,7 +148,6 @@ def delete_user(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    # 관리자 자기 자신은 삭제 불가
     if user.uid == admin.uid:
         raise HTTPException(status_code=400, detail="Cannot delete yourself")
 
@@ -213,9 +156,6 @@ def delete_user(
     return {"message": "User deleted successfully"}
 
 
-# ─────────────────────────────────────────────
-# Movie Management
-# ─────────────────────────────────────────────
 @router.get("/movies", response_model=List[AdminMovieResponse])
 def get_all_movies(
     page: int = 1,
@@ -224,11 +164,7 @@ def get_all_movies(
     admin: User = Depends(require_admin),
 ):
     offset = (page - 1) * size
-    review_count_sq = (
-        db.query(Review.mid, func.count(Review.rid).label("cnt"))
-        .group_by(Review.mid)
-        .subquery()
-    )
+    review_count_sq = review_count_subquery(db)
     rows = (
         db.query(Movie, func.coalesce(review_count_sq.c.cnt, 0).label("review_count"))
         .outerjoin(review_count_sq, Movie.mid == review_count_sq.c.mid)
@@ -239,16 +175,7 @@ def get_all_movies(
     )
 
     return [
-        AdminMovieResponse(
-            mid=m.mid,
-            title=m.title,
-            director=m.director,
-            posterUrl=m.poster_url,
-            releaseDate=str(m.release_date) if m.release_date else None,
-            averageRating=float(m.rat) if m.rat else 0,
-            reviewCount=review_count,
-            createdAt=m.created_at,
-        )
+        AdminMovieResponse.from_movie(m, int(review_count))
         for m, review_count in rows
     ]
 
@@ -259,37 +186,22 @@ def create_movie(
     db: Session = Depends(get_db),
     admin: User = Depends(require_admin),
 ):
-    release_date = None
-    if data.releaseDate:
-        try:
-            release_date = date.fromisoformat(data.releaseDate)
-        except ValueError:
-            pass
-
     movie = Movie(
         title=data.title,
         dec=data.description,
         director=data.director,
         poster_url=data.posterUrl,
-        release_date=release_date,
+        release_date=parse_release_date(data.releaseDate),
     )
     db.add(movie)
+    db.flush()
+
+    for genre_name in data.genres:
+        genre = _get_or_create_genre(db, genre_name)
+        db.add(MovieGenre(mid=movie.mid, gid=genre.gid))
+
     db.commit()
     db.refresh(movie)
-
-    # Add genres
-    for genre_name in data.genres:
-        genre = db.query(Genre).filter(Genre.name == genre_name).first()
-        if not genre:
-            genre = Genre(name=genre_name)
-            db.add(genre)
-            db.commit()
-            db.refresh(genre)
-
-        movie_genre = MovieGenre(mid=movie.mid, gid=genre.gid)
-        db.add(movie_genre)
-
-    db.commit()
     return {"message": "Movie created successfully", "movieId": movie.mid}
 
 
@@ -304,19 +216,19 @@ def update_movie(
     if not movie:
         raise HTTPException(status_code=404, detail="Movie not found")
 
-    if data.title is not None:
-        movie.title = data.title
-    if data.description is not None:
-        movie.dec = data.description
-    if data.director is not None:
-        movie.director = data.director
-    if data.posterUrl is not None:
-        movie.poster_url = data.posterUrl
-    if data.releaseDate is not None:
-        try:
-            movie.release_date = date.fromisoformat(data.releaseDate)
-        except ValueError:
-            pass
+    updates = data.model_dump(exclude_unset=True)
+    field_map = {
+        "title": "title",
+        "description": "dec",
+        "director": "director",
+        "posterUrl": "poster_url",
+    }
+    for schema_key, model_attr in field_map.items():
+        if schema_key in updates:
+            setattr(movie, model_attr, updates[schema_key])
+
+    if "releaseDate" in updates:
+        movie.release_date = parse_release_date(updates["releaseDate"])
 
     db.commit()
     return {"message": "Movie updated successfully"}
@@ -330,21 +242,11 @@ def delete_movie(
     if not movie:
         raise HTTPException(status_code=404, detail="Movie not found")
 
-    # 영화와 연결된 MovieGenre 레코드 먼저 삭제
-    db.query(MovieGenre).filter(MovieGenre.mid == movie_id).delete()
-    # 영화와 연결된 Review 레코드 먼저 삭제
-    db.query(Review).filter(Review.mid == movie_id).delete()
-    # 영화와 연결된 Favorite 레코드 먼저 삭제
-    db.query(Favorite).filter(Favorite.mid == movie_id).delete()
-
     db.delete(movie)
     db.commit()
     return {"message": "Movie deleted successfully"}
 
 
-# ─────────────────────────────────────────────
-# Review Management
-# ─────────────────────────────────────────────
 @router.get("/reviews", response_model=List[AdminReviewResponse])
 def get_all_reviews(
     page: int = 1,
@@ -363,22 +265,7 @@ def get_all_reviews(
         .all()
     )
 
-    result = []
-    for r, u, m in reviews:
-        result.append(
-            AdminReviewResponse(
-                rid=r.rid,
-                userId=u.uid,
-                userNickname=u.nickname,
-                movieId=m.mid,
-                movieTitle=m.title,
-                title=r.title,
-                content=r.dec,
-                rating=float(r.rat) if r.rat else 0,
-                createdAt=r.created_at,
-            )
-        )
-    return result
+    return [AdminReviewResponse.from_review(r, u, m) for r, u, m in reviews]
 
 
 @router.delete("/reviews/{review_id}")
@@ -394,9 +281,6 @@ def delete_review(
     return {"message": "Review deleted successfully"}
 
 
-# ─────────────────────────────────────────────
-# TMDB Movie Import
-# ─────────────────────────────────────────────
 @router.post("/movies/import-tmdb")
 async def import_movie_from_tmdb(
     request: TMDBImportRequest,
@@ -415,7 +299,6 @@ async def import_movie_from_tmdb(
             detail="TMDB API key not configured. Please set TMDB_API_KEY in .env file.",
         )
 
-    # Extract movie or TV ID from TMDB URL
     movie_match = re.search(r"/movie/(\d+)", request.tmdbUrl)
     tv_match = re.search(r"/tv/(\d+)", request.tmdbUrl)
 
@@ -432,10 +315,8 @@ async def import_movie_from_tmdb(
         )
 
     try:
-        # Fetch content details from TMDB API
         async with httpx.AsyncClient() as client:
             if content_type == "movie":
-                # Get movie details
                 content_response = await client.get(
                     f"https://api.themoviedb.org/3/movie/{content_id}",
                     params={"api_key": settings.TMDB_API_KEY, "language": "ko-KR"},
@@ -443,7 +324,6 @@ async def import_movie_from_tmdb(
                 content_response.raise_for_status()
                 content_data = content_response.json()
 
-                # Get movie credits for director
                 credits_response = await client.get(
                     f"https://api.themoviedb.org/3/movie/{content_id}/credits",
                     params={"api_key": settings.TMDB_API_KEY},
@@ -451,7 +331,6 @@ async def import_movie_from_tmdb(
                 credits_response.raise_for_status()
                 credits_data = credits_response.json()
 
-                # Extract director
                 director = None
                 for crew in credits_data.get("crew", []):
                     if crew.get("job") == "Director":
@@ -461,8 +340,7 @@ async def import_movie_from_tmdb(
                 title = content_data.get("title", "")
                 release_date_str = content_data.get("release_date")
 
-            else:  # TV series
-                # Get TV series details
+            else:
                 content_response = await client.get(
                     f"https://api.themoviedb.org/3/tv/{content_id}",
                     params={"api_key": settings.TMDB_API_KEY, "language": "ko-KR"},
@@ -470,7 +348,6 @@ async def import_movie_from_tmdb(
                 content_response.raise_for_status()
                 content_data = content_response.json()
 
-                # Get TV series credits for creator
                 credits_response = await client.get(
                     f"https://api.themoviedb.org/3/tv/{content_id}/credits",
                     params={"api_key": settings.TMDB_API_KEY},
@@ -478,61 +355,41 @@ async def import_movie_from_tmdb(
                 credits_response.raise_for_status()
                 credits_data = credits_response.json()
 
-                # Extract creator (use first creator as director)
                 director = None
                 creators = content_data.get("created_by", [])
                 if creators:
                     director = creators[0].get("name")
 
-                # If no creator, try to get executive producer
                 if not director:
                     for crew in credits_data.get("crew", []):
                         if crew.get("job") in ["Executive Producer", "Producer"]:
                             director = crew.get("name")
                             break
 
-                title = content_data.get(
-                    "name", ""
-                )  # TV uses 'name' instead of 'title'
+                title = content_data.get("name", "")
                 release_date_str = content_data.get("first_air_date")
 
-        # Build poster URL
         poster_url = None
         if content_data.get("poster_path"):
             poster_url = f"https://media.themoviedb.org/t/p/original{content_data['poster_path']}"
 
-        # Extract genres
         genre_names = [genre["name"] for genre in content_data.get("genres", [])]
 
-        # Create movie/TV entry in database
         new_movie = Movie(
             title=title,
             dec=content_data.get("overview", ""),
             director=director,
             poster_url=poster_url,
-            release_date=(
-                datetime.strptime(release_date_str, "%Y-%m-%d").date()
-                if release_date_str
-                else None
-            ),
+            release_date=parse_release_date(release_date_str),
             rat=0,
         )
 
         db.add(new_movie)
-        db.flush()  # Get the movie ID
+        db.flush()
 
-        # Add genres
         for genre_name in genre_names:
-            # Find or create genre
-            genre = db.query(Genre).filter(Genre.name == genre_name).first()
-            if not genre:
-                genre = Genre(name=genre_name)
-                db.add(genre)
-                db.flush()
-
-            # Link movie and genre
-            movie_genre = MovieGenre(mid=new_movie.mid, gid=genre.gid)
-            db.add(movie_genre)
+            genre = _get_or_create_genre(db, genre_name)
+            db.add(MovieGenre(mid=new_movie.mid, gid=genre.gid))
 
         db.commit()
 
@@ -563,12 +420,6 @@ async def import_movie_from_tmdb(
         raise HTTPException(
             status_code=500, detail=f"Failed to import content: {str(e)}"
         )
-
-
-# ─────────────────────────────────────────────
-# System Settings
-# ─────────────────────────────────────────────
-from app.services.system_settings_service import SystemSettingsService
 
 
 @router.get("/settings/email-verification", response_model=EmailVerificationSettingsResponse)

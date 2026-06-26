@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.dependencies import get_current_user
 from app.models import Favorite, Movie, User
-from app.schemas import FavoriteListResponse, FavoriteToggleRequest
+from app.schemas import FavoriteItem, FavoriteListResponse, FavoriteToggleRequest
 
 router = APIRouter(prefix="/favorites", tags=["favorites"])
 
@@ -32,7 +32,13 @@ def toggle_favorite(
         return {"favorited": False, "movieId": req.movieId}
 
     db.add(Favorite(uid=current_user.uid, mid=req.movieId))
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        # Another concurrent request already created the favorite.
+        return {"favorited": True, "movieId": req.movieId}
+
     return {"favorited": True, "movieId": req.movieId}
 
 
@@ -48,18 +54,7 @@ def list_favorites(
         .all()
     )
 
-    result = []
-    for f in favorites:
-        result.append(
-            {
-                "movieId": f.mid,
-                "title": f.movie.title,
-                "posterUrl": f.movie.poster_url,
-                "createdAt": f.created_at,
-            }
-        )
-
-    return {"favorites": result}
+    return {"favorites": [FavoriteItem.from_favorite(f) for f in favorites]}
 
 
 @router.post("/status")

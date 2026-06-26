@@ -1,3 +1,5 @@
+from typing import Any, Optional
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import desc, func
 from sqlalchemy.orm import Session, joinedload
@@ -8,6 +10,7 @@ from app.models import Comment, Review, ReviewLike, User
 from app.schemas import (
     CommentListRequest,
     CommentListResponse,
+    CommentReplyItem,
     ReviewCommentCreateRequest,
     ReviewCommentCreateResponse,
     ReviewCommentDeleteRequest,
@@ -21,8 +24,65 @@ from app.schemas import (
     ReplyCreateResponse,
     ReplyDeleteRequest,
 )
+from app.utils import is_owner_or_admin
 
 router = APIRouter(prefix="/reviews", tags=["reviews"])
+
+
+def _review_reaction_counts(
+    db: Session, review_id: int, my_reaction: Optional[str]
+) -> dict[str, Any]:
+    like_count = (
+        db.query(func.count(ReviewLike.lid))
+        .filter(ReviewLike.rid == review_id, ReviewLike.type == "L")
+        .scalar()
+    )
+    dislike_count = (
+        db.query(func.count(ReviewLike.lid))
+        .filter(ReviewLike.rid == review_id, ReviewLike.type == "D")
+        .scalar()
+    )
+    return {
+        "reviewId": review_id,
+        "likeCount": like_count or 0,
+        "dislikeCount": dislike_count or 0,
+        "myReaction": my_reaction,
+    }
+
+
+def _set_review_reaction(
+    db: Session, current_user: User, review_id: int, reaction_type: str
+) -> dict[str, Any]:
+    review = db.query(Review).filter(Review.rid == review_id).first()
+    if not review:
+        raise HTTPException(status_code=404, detail="Review not found")
+
+    existing = (
+        db.query(ReviewLike)
+        .filter(ReviewLike.rid == review_id, ReviewLike.uid == current_user.uid)
+        .first()
+    )
+
+    if existing:
+        if existing.type != reaction_type:
+            existing.type = reaction_type
+            db.commit()
+    else:
+        db.add(ReviewLike(rid=review_id, uid=current_user.uid, type=reaction_type))
+        db.commit()
+
+    return _review_reaction_counts(db, review_id, reaction_type)
+
+
+def _comment_reply_item(reply: Comment) -> CommentReplyItem:
+    return CommentReplyItem(
+        commentId=reply.cid,
+        reviewId=reply.rid,
+        userId=reply.uid,
+        userNickname=reply.user.nickname if reply.user else "Unknown",
+        content=reply.dec,
+        createdAt=reply.created_at,
+    )
 
 
 @router.get("/by-movie/{movie_id}", response_model=ReviewListResponse)
@@ -35,25 +95,19 @@ def get_reviews_by_movie(movie_id: int, db: Session = Depends(get_db)):
         .all()
     )
 
-    result = []
-    for r in reviews:
-        # Fetch user nickname (r.user.nickname)
-        # Note: r.user might load lazily.
-        # If user is None (shouldn't happen with FK constraint), handle gracefully.
-        nickname = r.user.nickname if r.user else "Unknown"
-
-        result.append(
+    return {
+        "reviews": [
             ReviewResponseItem(
                 reviewId=r.rid,
                 userId=r.uid,
-                userNickname=nickname,
-                rating=float(r.rat),
+                userNickname=r.user.nickname if r.user else "Unknown",
+                rating=float(r.rat) if r.rat is not None else 0.0,
                 content=r.dec,
                 createdAt=r.created_at,
             )
-        )
-
-    return {"reviews": result}
+            for r in reviews
+        ]
+    }
 
 
 @router.post("/create")
@@ -88,50 +142,8 @@ def like_review(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    review = db.query(Review).filter(Review.rid == req.reviewId).first()
-    if not review:
-        raise HTTPException(status_code=404, detail="Review not found")
-
-    existing = (
-        db.query(ReviewLike)
-        .filter(ReviewLike.rid == req.reviewId, ReviewLike.uid == current_user.uid)
-        .first()
-    )
-
-    if existing:
-        if existing.type == "L":
-            pass
-        else:
-            existing.type = "L"
-            db.commit()
-    else:
-        db.add(
-            ReviewLike(
-                rid=req.reviewId,
-                uid=current_user.uid,
-                type="L",
-            )
-        )
-        db.commit()
-
-    like_count = (
-        db.query(func.count(ReviewLike.lid))
-        .filter(ReviewLike.rid == req.reviewId, ReviewLike.type == "L")
-        .scalar()
-    )
-    dislike_count = (
-        db.query(func.count(ReviewLike.lid))
-        .filter(ReviewLike.rid == req.reviewId, ReviewLike.type == "D")
-        .scalar()
-    )
-
-    return {
-        "message": "Review liked",
-        "reviewId": req.reviewId,
-        "likeCount": like_count or 0,
-        "dislikeCount": dislike_count or 0,
-        "myReaction": "L",
-    }
+    result = _set_review_reaction(db, current_user, req.reviewId, "L")
+    return {"message": "Review liked", **result}
 
 
 @router.post("/dislike")
@@ -140,50 +152,8 @@ def dislike_review(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    review = db.query(Review).filter(Review.rid == req.reviewId).first()
-    if not review:
-        raise HTTPException(status_code=404, detail="Review not found")
-
-    existing = (
-        db.query(ReviewLike)
-        .filter(ReviewLike.rid == req.reviewId, ReviewLike.uid == current_user.uid)
-        .first()
-    )
-
-    if existing:
-        if existing.type == "D":
-            pass
-        else:
-            existing.type = "D"
-            db.commit()
-    else:
-        db.add(
-            ReviewLike(
-                rid=req.reviewId,
-                uid=current_user.uid,
-                type="D",
-            )
-        )
-        db.commit()
-
-    like_count = (
-        db.query(func.count(ReviewLike.lid))
-        .filter(ReviewLike.rid == req.reviewId, ReviewLike.type == "L")
-        .scalar()
-    )
-    dislike_count = (
-        db.query(func.count(ReviewLike.lid))
-        .filter(ReviewLike.rid == req.reviewId, ReviewLike.type == "D")
-        .scalar()
-    )
-
-    return {
-        "message": "Review disliked",
-        "reviewId": req.reviewId,
-        "likeCount": like_count or 0,
-        "dislikeCount": dislike_count or 0,
-        "myReaction": "D",
-    }
+    result = _set_review_reaction(db, current_user, req.reviewId, "D")
+    return {"message": "Review disliked", **result}
 
 
 @router.post("/reaction/cancel")
@@ -206,24 +176,8 @@ def cancel_review_reaction(
         db.delete(existing)
         db.commit()
 
-    like_count = (
-        db.query(func.count(ReviewLike.lid))
-        .filter(ReviewLike.rid == req.reviewId, ReviewLike.type == "L")
-        .scalar()
-    )
-    dislike_count = (
-        db.query(func.count(ReviewLike.lid))
-        .filter(ReviewLike.rid == req.reviewId, ReviewLike.type == "D")
-        .scalar()
-    )
-
-    return {
-        "message": "Review reaction canceled",
-        "reviewId": req.reviewId,
-        "likeCount": like_count or 0,
-        "dislikeCount": dislike_count or 0,
-        "myReaction": None,
-    }
+    result = _review_reaction_counts(db, req.reviewId, None)
+    return {"message": "Review reaction canceled", **result}
 
 
 @router.post("/comment/create", response_model=ReviewCommentCreateResponse)
@@ -265,7 +219,7 @@ def delete_review(
     if not review:
         raise HTTPException(status_code=404, detail="Review not found")
 
-    if review.uid != current_user.uid and not current_user.is_admin:
+    if not is_owner_or_admin(review, current_user):
         raise HTTPException(status_code=403, detail="Not allowed to delete review")
 
     db.delete(review)
@@ -284,7 +238,7 @@ def delete_review_comment(
     if not comment:
         raise HTTPException(status_code=404, detail="Comment not found")
 
-    if comment.uid != current_user.uid and not current_user.is_admin:
+    if not is_owner_or_admin(comment, current_user):
         raise HTTPException(status_code=403, detail="Not allowed to delete comment")
 
     db.delete(comment)
@@ -310,21 +264,8 @@ def list_review_comments(req: CommentListRequest, db: Session = Depends(get_db))
         .all()
     )
 
-    result = []
-    for c in top_level:
-        replies = []
-        for r in sorted(c.replies, key=lambda x: x.created_at):
-            replies.append(
-                {
-                    "commentId": r.cid,
-                    "reviewId": r.rid,
-                    "userId": r.uid,
-                    "userNickname": r.user.nickname if r.user else "Unknown",
-                    "content": r.dec,
-                    "createdAt": r.created_at,
-                }
-            )
-        result.append(
+    return {
+        "comments": [
             {
                 "commentId": c.cid,
                 "reviewId": c.rid,
@@ -332,11 +273,14 @@ def list_review_comments(req: CommentListRequest, db: Session = Depends(get_db))
                 "userNickname": c.user.nickname if c.user else "Unknown",
                 "content": c.dec,
                 "createdAt": c.created_at,
-                "replies": replies,
+                "replies": [
+                    _comment_reply_item(r)
+                    for r in sorted(c.replies, key=lambda x: x.created_at)
+                ],
             }
-        )
-
-    return {"comments": result}
+            for c in top_level
+        ]
+    }
 
 
 @router.post("/comment/reply/create", response_model=ReplyCreateResponse)
@@ -388,7 +332,7 @@ def delete_reply(
     if reply.parent_cid is None:
         raise HTTPException(status_code=400, detail="Target is not a reply")
 
-    if reply.uid != current_user.uid and not current_user.is_admin:
+    if not is_owner_or_admin(reply, current_user):
         raise HTTPException(status_code=403, detail="Not allowed to delete this reply")
 
     db.delete(reply)

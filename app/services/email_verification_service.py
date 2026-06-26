@@ -6,7 +6,7 @@ from email.utils import formataddr
 from pathlib import Path
 
 from app.config import settings
-from app.valkey_client import get_valkey_client
+from app.services.base import valkey_operation
 
 
 class EmailVerificationService:
@@ -21,85 +21,65 @@ class EmailVerificationService:
         return f"{secrets.randbelow(1000000):06d}"
 
     @staticmethod
-    async def store_verification_code(email: str, code: str, ttl_seconds: int) -> bool:
-        valkey_client = None
+    @valkey_operation
+    async def store_verification_code(client, email: str, code: str, ttl_seconds: int) -> bool:
         try:
-            valkey_client = get_valkey_client()
             key = f"{EmailVerificationService.CODE_PREFIX}{email}"
-            await valkey_client.setex(key, ttl_seconds, code)
+            await client.setex(key, ttl_seconds, code)
             return True
         except Exception as e:
             print(f"Error storing verification code: {e}")
             return False
-        finally:
-            if valkey_client:
-                await valkey_client.aclose()
 
     @staticmethod
-    async def verify_code(email: str, code: str, ttl_seconds: int) -> bool:
-        valkey_client = None
+    @valkey_operation
+    async def verify_code(client, email: str, code: str, ttl_seconds: int) -> bool:
         try:
-            valkey_client = get_valkey_client()
             code_key = f"{EmailVerificationService.CODE_PREFIX}{email}"
-            stored_code = await valkey_client.get(code_key)
+            stored_code = await client.get(code_key)
             if not stored_code or stored_code != code:
                 return False
 
             verified_key = f"{EmailVerificationService.VERIFIED_PREFIX}{email}"
-            await valkey_client.delete(code_key)
-            await valkey_client.setex(verified_key, ttl_seconds, "verified")
+            await client.delete(code_key)
+            await client.setex(verified_key, ttl_seconds, "verified")
             return True
         except Exception as e:
             print(f"Error verifying code: {e}")
             return False
-        finally:
-            if valkey_client:
-                await valkey_client.aclose()
 
     @staticmethod
-    async def is_email_verified(email: str) -> bool:
-        valkey_client = None
+    @valkey_operation
+    async def is_email_verified(client, email: str) -> bool:
         try:
-            valkey_client = get_valkey_client()
             key = f"{EmailVerificationService.VERIFIED_PREFIX}{email}"
-            result = await valkey_client.exists(key)
+            result = await client.exists(key)
             return bool(result > 0)
         except Exception as e:
             print(f"Error checking email verification: {e}")
             return False
-        finally:
-            if valkey_client:
-                await valkey_client.aclose()
 
     @staticmethod
-    async def clear_verification_code(email: str) -> bool:
-        valkey_client = None
+    @valkey_operation
+    async def clear_verification_code(client, email: str) -> bool:
         try:
-            valkey_client = get_valkey_client()
             key = f"{EmailVerificationService.CODE_PREFIX}{email}"
-            result = await valkey_client.delete(key)
+            result = await client.delete(key)
             return bool(result > 0)
         except Exception as e:
             print(f"Error clearing verification code: {e}")
             return False
-        finally:
-            if valkey_client:
-                await valkey_client.aclose()
 
     @staticmethod
-    async def clear_email_verified(email: str) -> bool:
-        valkey_client = None
+    @valkey_operation
+    async def clear_email_verified(client, email: str) -> bool:
         try:
-            valkey_client = get_valkey_client()
             key = f"{EmailVerificationService.VERIFIED_PREFIX}{email}"
-            result = await valkey_client.delete(key)
+            result = await client.delete(key)
             return bool(result > 0)
         except Exception as e:
             print(f"Error clearing email verified status: {e}")
             return False
-        finally:
-            if valkey_client:
-                await valkey_client.aclose()
 
     @staticmethod
     def _build_email_message(to_email: str, code: str) -> EmailMessage:

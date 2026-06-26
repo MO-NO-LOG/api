@@ -1,6 +1,7 @@
 from sqlalchemy import (
     CHAR,
     Boolean,
+    CheckConstraint,
     Column,
     Date,
     DateTime,
@@ -40,8 +41,12 @@ class User(Base):
         DateTime(timezone=True), server_default=func.now()
     )  # Account Creation Timestamp
 
-    reviews = relationship("Review", back_populates="user")  # User's Reviews
-    comments = relationship("Comment", back_populates="user")  # User's Comments
+    reviews = relationship(
+        "Review", back_populates="user", cascade="all, delete-orphan", passive_deletes=True
+    )  # User's Reviews
+    comments = relationship(
+        "Comment", back_populates="user", cascade="all, delete-orphan", passive_deletes=True
+    )  # User's Comments
 
 
 class Movie(Base):
@@ -58,8 +63,15 @@ class Movie(Base):
     director = Column(String(100), nullable=True)  # Director
     poster_url = Column(String(255), nullable=True)  # Poster Image URL
 
-    genres = relationship("MovieGenre", back_populates="movie")  # Movie Genres
-    reviews = relationship("Review", back_populates="movie")  # Movie Reviews
+    genres = relationship(
+        "MovieGenre", back_populates="movie", cascade="all, delete-orphan", passive_deletes=True
+    )  # Movie Genres
+    reviews = relationship(
+        "Review", back_populates="movie", cascade="all, delete-orphan", passive_deletes=True
+    )  # Movie Reviews
+    favorites = relationship(
+        "Favorite", back_populates="movie", cascade="all, delete-orphan", passive_deletes=True
+    )  # Movie Favorites
 
 
 class Genre(Base):
@@ -104,8 +116,12 @@ class Review(Base):
 
     user = relationship("User", back_populates="reviews")  # Review Author
     movie = relationship("Movie", back_populates="reviews")  # Reviewed Movie
-    comments = relationship("Comment", back_populates="review")  # Review Comments
-    likes = relationship("ReviewLike", back_populates="review")  # Review Likes/Dislikes
+    comments = relationship(
+        "Comment", back_populates="review", cascade="all, delete-orphan", passive_deletes=True
+    )  # Review Comments
+    likes = relationship(
+        "ReviewLike", back_populates="review", cascade="all, delete-orphan", passive_deletes=True
+    )  # Review Likes/Dislikes
 
 
 class Comment(Base):
@@ -130,12 +146,14 @@ class Comment(Base):
     review = relationship("Review", back_populates="comments")  # Associated Review
     user = relationship("User", back_populates="comments")  # Comment Author
     likes = relationship(
-        "CommentLike", back_populates="comment"
+        "CommentLike", back_populates="comment", cascade="all, delete-orphan", passive_deletes=True
     )  # Comment Likes/Dislikes
     replies = relationship(
         "Comment",
         foreign_keys="Comment.parent_cid",
         backref=backref("parent", remote_side=[cid], uselist=False),
+        cascade="all, delete-orphan",
+        passive_deletes=True,
     )  # Replies to this comment
 
 
@@ -149,10 +167,14 @@ class ReviewLike(Base):
     uid = Column(
         Integer, ForeignKey("users.uid", ondelete="CASCADE"), nullable=False
     )  # User ID
-    type = Column(CHAR(1), nullable=True)  # L or D
+    type = Column(CHAR(1), nullable=False)  # L or D
     created_at = Column(
         DateTime(timezone=True), server_default=func.now()
     )  # Review Like Creation Timestamp
+
+    __table_args__ = (
+        CheckConstraint("type IN ('L', 'D')", name="ck_review_like_type"),
+    )
 
     review = relationship("Review", back_populates="likes")  # Associated Review
 
@@ -167,10 +189,14 @@ class CommentLike(Base):
     uid = Column(
         Integer, ForeignKey("users.uid", ondelete="CASCADE"), nullable=False
     )  # User ID
-    type = Column(CHAR(1), nullable=True)  # L or D
+    type = Column(CHAR(1), nullable=False)  # L or D
     created_at = Column(
         DateTime(timezone=True), server_default=func.now()
     )  # Comment Like Creation Timestamp
+
+    __table_args__ = (
+        CheckConstraint("type IN ('L', 'D')", name="ck_comment_like_type"),
+    )
 
     comment = relationship("Comment", back_populates="likes")  # Associated Comment
 
@@ -192,4 +218,4 @@ class Favorite(Base):
     __table_args__ = (UniqueConstraint("uid", "mid", name="uq_favorite_user_movie"),)
 
     user = relationship("User")  # User who favorited
-    movie = relationship("Movie")  # Favorited Movie
+    movie = relationship("Movie", back_populates="favorites")  # Favorited Movie

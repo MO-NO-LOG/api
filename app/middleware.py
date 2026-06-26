@@ -102,7 +102,8 @@ class CsrfMiddleware(BaseHTTPMiddleware):
 
     def _is_exempt_path(self, path: str) -> bool:
         """Check if path is exempt from CSRF validation."""
-        return path in self.CSRF_EXEMPT_PATHS
+        normalized = path.rstrip("/")
+        return normalized in {p.rstrip("/") for p in self.CSRF_EXEMPT_PATHS}
 
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
@@ -174,20 +175,6 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             response.headers["Strict-Transport-Security"] = (
                 "max-age=31536000; includeSubDomains"
             )
-
-        # Content Security Policy
-        csp_directives = [
-            "default-src 'self'",
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval'",  # Adjust based on your needs
-            "style-src 'self' 'unsafe-inline'",
-            "img-src 'self' data: https:",
-            "font-src 'self' data:",
-            "connect-src 'self'",
-            "frame-ancestors 'none'",
-            "base-uri 'self'",
-            "form-action 'self'",
-        ]
-        # response.headers["Content-Security-Policy"] = "; ".join(csp_directives)
 
         # Referrer Policy
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"

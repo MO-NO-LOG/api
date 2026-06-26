@@ -1,7 +1,7 @@
 from datetime import date, datetime
 from typing import List, Optional
 
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 
 
 # User Schemas
@@ -13,7 +13,7 @@ class UserCreate(UserBase):
     password: str
     nickname: str
     birth_date: Optional[date] = None
-    gender: Optional[str] = None
+    gender: Optional[str] = Field(None, pattern=r"^[MFO]$")
     bio: Optional[str] = None
 
 
@@ -40,7 +40,7 @@ class UserUpdateRequest(BaseModel):
     birth_date: Optional[date] = None
     nickname: Optional[str] = None
     bio: Optional[str] = None
-    gender: Optional[str] = None
+    gender: Optional[str] = Field(None, pattern=r"^[MFO]$")
     img: Optional[str] = None
 
 
@@ -52,6 +52,17 @@ class MovieResponseItem(BaseModel):
     genres: List[str] = []
     averageRating: float
     releaseDate: Optional[date] = None
+
+    @classmethod
+    def from_movie(cls, movie) -> "MovieResponseItem":
+        return cls(
+            id=movie.mid,
+            title=movie.title,
+            posterUrl=movie.poster_url,
+            genres=sorted({g.genre.name for g in movie.genres if g.genre}),
+            averageRating=float(movie.rat) if movie.rat is not None else 0.0,
+            releaseDate=movie.release_date,
+        )
 
 
 class MovieDetailResponse(MovieResponseItem):
@@ -68,7 +79,7 @@ class MovieSearchResponse(BaseModel):
 class ReviewCreateRequest(BaseModel):
     movieId: int
     content: str
-    rating: float
+    rating: float = Field(..., ge=0, le=5)
 
 
 class ReviewResponseItem(BaseModel):
@@ -180,6 +191,19 @@ class MovieRankingItem(BaseModel):
     releaseDate: Optional[date] = None
     reviewCount: int
 
+    @classmethod
+    def from_movie(cls, rank: int, movie, review_count: int = 0) -> "MovieRankingItem":
+        return cls(
+            rank=rank,
+            id=movie.mid,
+            title=movie.title,
+            posterUrl=movie.poster_url,
+            genres=sorted({g.genre.name for g in movie.genres if g.genre}),
+            averageRating=float(movie.rat) if movie.rat is not None else 0.0,
+            releaseDate=movie.release_date,
+            reviewCount=review_count,
+        )
+
 
 class MovieRankingResponse(BaseModel):
     movies: List[MovieRankingItem]
@@ -243,6 +267,15 @@ class FavoriteItem(BaseModel):
     posterUrl: Optional[str] = None
     createdAt: datetime
 
+    @classmethod
+    def from_favorite(cls, favorite) -> "FavoriteItem":
+        return cls(
+            movieId=favorite.mid,
+            title=favorite.movie.title,
+            posterUrl=favorite.movie.poster_url,
+            createdAt=favorite.created_at,
+        )
+
 
 class FavoriteListResponse(BaseModel):
     favorites: List[FavoriteItem]
@@ -262,6 +295,19 @@ class AdminUserResponse(BaseModel):
     class Config:
         from_attributes = True
 
+    @classmethod
+    def from_user(cls, user, review_count: int = 0) -> "AdminUserResponse":
+        return cls(
+            uid=user.uid,
+            nickname=user.nickname,
+            email=user.email,
+            img=user.img,
+            bio=user.bio,
+            gender=user.gender,
+            createdAt=user.created_at,
+            reviewCount=review_count,
+        )
+
 
 class AdminMovieResponse(BaseModel):
     mid: int
@@ -275,6 +321,19 @@ class AdminMovieResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+    @classmethod
+    def from_movie(cls, movie, review_count: int = 0) -> "AdminMovieResponse":
+        return cls(
+            mid=movie.mid,
+            title=movie.title,
+            director=movie.director,
+            posterUrl=movie.poster_url,
+            releaseDate=str(movie.release_date) if movie.release_date else None,
+            averageRating=float(movie.rat) if movie.rat is not None else 0.0,
+            reviewCount=review_count,
+            createdAt=movie.created_at,
+        )
 
 
 class AdminReviewResponse(BaseModel):
@@ -290,6 +349,20 @@ class AdminReviewResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+    @classmethod
+    def from_review(cls, review, user, movie) -> "AdminReviewResponse":
+        return cls(
+            rid=review.rid,
+            userId=user.uid,
+            userNickname=user.nickname,
+            movieId=movie.mid,
+            movieTitle=movie.title,
+            title=review.title,
+            content=review.dec,
+            rating=float(review.rat) if review.rat is not None else 0.0,
+            createdAt=review.created_at,
+        )
 
 
 class DashboardStats(BaseModel):
@@ -312,7 +385,7 @@ class AdminMovieCreateRequest(BaseModel):
     description: Optional[str] = None
     director: Optional[str] = None
     posterUrl: Optional[str] = None
-    releaseDate: Optional[str] = None
+    releaseDate: Optional[str] = Field(None, pattern=r"^\d{4}-\d{2}-\d{2}$")
     genres: List[str] = []
 
 
@@ -321,7 +394,7 @@ class AdminMovieUpdateRequest(BaseModel):
     description: Optional[str] = None
     director: Optional[str] = None
     posterUrl: Optional[str] = None
-    releaseDate: Optional[str] = None
+    releaseDate: Optional[str] = Field(None, pattern=r"^\d{4}-\d{2}-\d{2}$")
 
 
 class TMDBImportRequest(BaseModel):

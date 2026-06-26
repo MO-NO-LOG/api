@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models import User
+from app.security import get_token_from_header_or_cookie
 from app.services.token_service import TokenBlacklistService
 from app.utils import ALGORITHM, SECRET_KEY
 
@@ -25,9 +26,7 @@ async def get_current_user(
     )
 
     if not token:
-        token = request.cookies.get("access_token")
-        if token and token.startswith("Bearer "):
-            token = token[7:]
+        token = get_token_from_header_or_cookie(request, "access_token")
 
     if not token:
         raise credentials_exception

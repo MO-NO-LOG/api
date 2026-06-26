@@ -12,6 +12,7 @@ from app.config import settings
 from app.database import get_db
 from app.dependencies import get_current_user
 from app.models import User
+from app.utils import build_s3_url
 
 router = APIRouter(prefix="/file", tags=["file"])
 
@@ -162,20 +163,7 @@ def upload_to_s3(
             CacheControl="public, max-age=31536000",  # 1년 캐시
         )
 
-        # 공개 URL 생성
-        if settings.S3_PUBLIC_URL:
-            # 커스텀 CDN/공개 URL 사용
-            return f"{settings.S3_PUBLIC_URL.rstrip('/')}/{object_key}"
-        elif settings.S3_ENDPOINT_URL:
-            # 커스텀 엔드포인트 사용 (MinIO, R2 등)
-            endpoint = settings.S3_ENDPOINT_URL.rstrip("/")
-            if settings.S3_USE_PATH_STYLE:
-                return f"{endpoint}/{settings.S3_BUCKET_NAME}/{object_key}"
-            else:
-                return f"{endpoint}/{object_key}"
-        else:
-            # AWS S3 기본 URL
-            return f"https://{settings.S3_BUCKET_NAME}.s3.{settings.S3_REGION}.amazonaws.com/{object_key}"
+        return build_s3_url(object_key)
 
     except ClientError as e:
         raise HTTPException(

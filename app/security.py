@@ -1,7 +1,7 @@
 import hashlib
 import hmac
 import secrets
-from typing import Literal, Optional
+from typing import Literal, Optional, Union
 
 from fastapi import Response
 
@@ -107,3 +107,41 @@ def validate_csrf_tokens(
 
     # Simple comparison for non-signed tokens (legacy support)
     return hmac.compare_digest(cookie_token, header_token)
+
+
+def set_refresh_cookie(response: Response, refresh_token: str, max_age: int) -> None:
+    """Set the HttpOnly refresh token cookie."""
+    response.set_cookie(
+        key=settings.REFRESH_TOKEN_COOKIE_NAME,
+        value=refresh_token,
+        max_age=max_age,
+        httponly=settings.REFRESH_TOKEN_COOKIE_HTTPONLY,
+        secure=settings.REFRESH_TOKEN_COOKIE_SECURE,
+        samesite=settings.REFRESH_TOKEN_COOKIE_SAMESITE,  # type: ignore[arg-type]
+        path=settings.COOKIE_PATH,
+        domain=settings.COOKIE_DOMAIN,
+    )
+
+
+def clear_refresh_cookie(response: Response) -> None:
+    """Clear the HttpOnly refresh token cookie."""
+    response.delete_cookie(
+        key=settings.REFRESH_TOKEN_COOKIE_NAME,
+        path=settings.COOKIE_PATH,
+        domain=settings.COOKIE_DOMAIN,
+    )
+
+
+def get_token_from_header_or_cookie(
+    request, cookie_name: str, prefix: str = "Bearer "
+) -> Union[str, None]:
+    """Extract a bearer token from the Authorization header or a cookie."""
+    auth_header = request.headers.get("Authorization")
+    if auth_header and auth_header.startswith(prefix):
+        return auth_header[len(prefix) :]
+
+    cookie_token = request.cookies.get(cookie_name)
+    if cookie_token and cookie_token.startswith(prefix):
+        return cookie_token[len(prefix) :]
+
+    return None

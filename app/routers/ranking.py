@@ -1,10 +1,11 @@
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import desc, func
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.database import get_db
-from app.models import Movie, MovieGenre, Genre, Review
+from app.models import Movie, MovieGenre
 from app.schemas import MovieRankingItem, MovieRankingResponse
+from app.utils import review_count_subquery
 
 router = APIRouter(prefix="/ranking", tags=["ranking"])
 
@@ -17,35 +18,20 @@ def get_movie_ranking(
     """
     Returns movie ranking based on average rating.
     """
-    # Subquery: count reviews per movie
-    review_count_subq = (
-        db.query(Review.mid, func.count(Review.rid).label("review_count"))
-        .group_by(Review.mid)
-        .subquery()
-    )
+    review_count_subq = review_count_subquery(db)
 
     movies = (
         db.query(Movie, func.coalesce(review_count_subq.c.review_count, 0).label("review_count"))
         .outerjoin(review_count_subq, Movie.mid == review_count_subq.c.mid)
+        .options(joinedload(Movie.genres).joinedload(MovieGenre.genre))
         .order_by(desc(Movie.rat), desc(func.coalesce(review_count_subq.c.review_count, 0)))
         .limit(limit)
         .all()
     )
 
-    result = []
-    for rank, (m, review_count) in enumerate(movies, start=1):
-        genres = [g.genre.name for g in m.genres]
-        result.append(
-            MovieRankingItem(
-                rank=rank,
-                id=m.mid,
-                title=m.title,
-                posterUrl=m.poster_url,
-                genres=genres,
-                averageRating=float(m.rat) if m.rat else 0.0,
-                releaseDate=m.release_date,
-                reviewCount=int(review_count),
-            )
-        )
-
-    return {"movies": result}
+    return {
+        "movies": [
+            MovieRankingItem.from_movie(rank, m, int(review_count))
+            for rank, (m, review_count) in enumerate(movies, start=1)
+        ]
+    }

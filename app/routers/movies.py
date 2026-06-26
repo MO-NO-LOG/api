@@ -1,14 +1,16 @@
+from typing import List
+
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, desc
+from sqlalchemy.orm import Session, joinedload
+
 from app.database import get_db
-from app.models import Movie, MovieGenre, Genre
+from app.models import Genre, Movie, MovieGenre
 from app.schemas import (
-    MovieResponseItem,
     MovieDetailResponse,
+    MovieResponseItem,
     MovieSearchResponse,
 )
-from typing import List
 
 router = APIRouter(prefix="/movies", tags=["movies"])
 
@@ -48,21 +50,10 @@ def search_movies(
 
     total_pages = (total_count + size - 1) // size
 
-    result = []
-    for m in movies:
-        genres = [g.genre.name for g in m.genres]
-        result.append(
-            MovieResponseItem(
-                id=m.mid,
-                title=m.title,
-                posterUrl=m.poster_url,
-                genres=genres,
-                averageRating=float(m.rat) if m.rat else 0.0,
-                releaseDate=m.release_date,
-            )
-        )
-
-    return {"movies": result, "totalPages": total_pages}
+    return {
+        "movies": [MovieResponseItem.from_movie(m) for m in movies],
+        "totalPages": total_pages,
+    }
 
 
 @router.get("/trend", response_model=List[MovieResponseItem])
@@ -76,20 +67,7 @@ def get_trend_movies(db: Session = Depends(get_db)):
         .all()
     )
 
-    result = []
-    for m in movies:
-        genres = [g.genre.name for g in m.genres]
-        result.append(
-            MovieResponseItem(
-                id=m.mid,
-                title=m.title,
-                posterUrl=m.poster_url,
-                genres=genres,
-                averageRating=float(m.rat) if m.rat else 0.0,
-                releaseDate=m.release_date,
-            )
-        )
-    return result
+    return [MovieResponseItem.from_movie(m) for m in movies]
 
 
 @router.get("/detail/{movieId}", response_model=MovieDetailResponse)
@@ -103,15 +81,8 @@ def get_movie_detail(movieId: int, db: Session = Depends(get_db)):
     if not movie:
         raise HTTPException(status_code=404, detail="Movie not found")
 
-    genres = [g.genre.name for g in movie.genres]
-
     return MovieDetailResponse(
-        id=movie.mid,
-        title=movie.title,
-        posterUrl=movie.poster_url,
-        genres=genres,
-        averageRating=float(movie.rat) if movie.rat else 0.0,
-        releaseDate=movie.release_date,
+        **MovieResponseItem.from_movie(movie).model_dump(),
         description=movie.dec,
     )
 
@@ -139,17 +110,4 @@ def get_recommended_movies(limit: int = 4, db: Session = Depends(get_db)):
             .all()
         )
 
-    result = []
-    for m in movies:
-        genres = [g.genre.name for g in m.genres]
-        result.append(
-            MovieResponseItem(
-                id=m.mid,
-                title=m.title,
-                posterUrl=m.poster_url,
-                genres=genres,
-                averageRating=float(m.rat) if m.rat else 0.0,
-                releaseDate=m.release_date,
-            )
-        )
-    return result
+    return [MovieResponseItem.from_movie(m) for m in movies]
