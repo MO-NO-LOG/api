@@ -23,7 +23,7 @@ from app.schemas import (
     TMDBImportRequest,
 )
 from app.services.system_settings_service import SystemSettingsService
-from app.utils import parse_release_date, review_count_subquery
+from app.utils import parse_release_date, review_count_subquery, user_review_count_subquery
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -52,12 +52,13 @@ def get_dashboard_stats(
     total_movies = db.query(Movie).count()
     total_reviews = db.query(Review).count()
 
-    review_count_sq = review_count_subquery(db)
+    user_review_count_sq = user_review_count_subquery(db)
     recent_users_raw = (
         db.query(
-            User, func.coalesce(review_count_sq.c.review_count, 0).label("review_count")
+            User,
+            func.coalesce(user_review_count_sq.c.review_count, 0).label("review_count"),
         )
-        .outerjoin(review_count_sq, User.uid == review_count_sq.c.uid)
+        .outerjoin(user_review_count_sq, User.uid == user_review_count_sq.c.uid)
         .order_by(User.created_at.desc())
         .limit(5)
         .all()
@@ -96,12 +97,13 @@ def get_all_users(
     admin: User = Depends(require_admin),
 ):
     offset = (page - 1) * size
-    review_count_sq = review_count_subquery(db)
+    user_review_count_sq = user_review_count_subquery(db)
     rows = (
         db.query(
-            User, func.coalesce(review_count_sq.c.review_count, 0).label("review_count")
+            User,
+            func.coalesce(user_review_count_sq.c.review_count, 0).label("review_count"),
         )
-        .outerjoin(review_count_sq, User.uid == review_count_sq.c.uid)
+        .outerjoin(user_review_count_sq, User.uid == user_review_count_sq.c.uid)
         .order_by(User.created_at.desc())
         .offset(offset)
         .limit(size)

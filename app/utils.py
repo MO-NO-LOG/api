@@ -145,6 +145,17 @@ def review_count_subquery(db: Session):
     )
 
 
+def user_review_count_subquery(db: Session):
+    """Return a subquery that counts reviews per user."""
+    from app.models import Review
+
+    return (
+        db.query(Review.uid, func.count(Review.rid).label("review_count"))
+        .group_by(Review.uid)
+        .subquery()
+    )
+
+
 def genre_names(movie) -> List[str]:
     """Return a sorted list of genre names for a movie."""
     return sorted({g.genre.name for g in movie.genres if g.genre})
