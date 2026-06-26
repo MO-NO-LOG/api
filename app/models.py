@@ -30,7 +30,7 @@ class User(Base):
         String(100), unique=True, nullable=False, index=True
     )  # Email Address
     password = Column(String(255), nullable=False)  # Hashed Password
-    img = Column(String(36), default="")  # Profile Image UUID (UUIDv7)
+    img = Column(String(36), default="", nullable=True)  # Profile Image UUID (UUIDv7)
     bio = Column(Text, nullable=True)  # User Biography
     gender = Column(
         CHAR(1),
@@ -42,10 +42,16 @@ class User(Base):
     )  # Account Creation Timestamp
 
     reviews = relationship(
-        "Review", back_populates="user", cascade="all, delete-orphan", passive_deletes=True
+        "Review",
+        back_populates="user",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
     )  # User's Reviews
     comments = relationship(
-        "Comment", back_populates="user", cascade="all, delete-orphan", passive_deletes=True
+        "Comment",
+        back_populates="user",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
     )  # User's Comments
 
 
@@ -64,13 +70,22 @@ class Movie(Base):
     poster_url = Column(String(255), nullable=True)  # Poster Image URL
 
     genres = relationship(
-        "MovieGenre", back_populates="movie", cascade="all, delete-orphan", passive_deletes=True
+        "MovieGenre",
+        back_populates="movie",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
     )  # Movie Genres
     reviews = relationship(
-        "Review", back_populates="movie", cascade="all, delete-orphan", passive_deletes=True
+        "Review",
+        back_populates="movie",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
     )  # Movie Reviews
     favorites = relationship(
-        "Favorite", back_populates="movie", cascade="all, delete-orphan", passive_deletes=True
+        "Favorite",
+        back_populates="movie",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
     )  # Movie Favorites
 
 
@@ -117,10 +132,16 @@ class Review(Base):
     user = relationship("User", back_populates="reviews")  # Review Author
     movie = relationship("Movie", back_populates="reviews")  # Reviewed Movie
     comments = relationship(
-        "Comment", back_populates="review", cascade="all, delete-orphan", passive_deletes=True
+        "Comment",
+        back_populates="review",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
     )  # Review Comments
     likes = relationship(
-        "ReviewLike", back_populates="review", cascade="all, delete-orphan", passive_deletes=True
+        "ReviewLike",
+        back_populates="review",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
     )  # Review Likes/Dislikes
 
 
@@ -146,7 +167,10 @@ class Comment(Base):
     review = relationship("Review", back_populates="comments")  # Associated Review
     user = relationship("User", back_populates="comments")  # Comment Author
     likes = relationship(
-        "CommentLike", back_populates="comment", cascade="all, delete-orphan", passive_deletes=True
+        "CommentLike",
+        back_populates="comment",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
     )  # Comment Likes/Dislikes
     replies = relationship(
         "Comment",

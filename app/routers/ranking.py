@@ -21,10 +21,15 @@ def get_movie_ranking(
     review_count_subq = review_count_subquery(db)
 
     movies = (
-        db.query(Movie, func.coalesce(review_count_subq.c.review_count, 0).label("review_count"))
+        db.query(
+            Movie,
+            func.coalesce(review_count_subq.c.review_count, 0).label("review_count"),
+        )
         .outerjoin(review_count_subq, Movie.mid == review_count_subq.c.mid)
         .options(joinedload(Movie.genres).joinedload(MovieGenre.genre))
-        .order_by(desc(Movie.rat), desc(func.coalesce(review_count_subq.c.review_count, 0)))
+        .order_by(
+            desc(Movie.rat), desc(func.coalesce(review_count_subq.c.review_count, 0))
+        )
         .limit(limit)
         .all()
     )

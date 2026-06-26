@@ -117,7 +117,7 @@ def set_refresh_cookie(response: Response, refresh_token: str, max_age: int) -> 
         max_age=max_age,
         httponly=settings.REFRESH_TOKEN_COOKIE_HTTPONLY,
         secure=settings.REFRESH_TOKEN_COOKIE_SECURE,
-        samesite=settings.REFRESH_TOKEN_COOKIE_SAMESITE,  # type: ignore[arg-type]
+        samesite=settings.REFRESH_TOKEN_COOKIE_SAMESITE,  # ty: ignore[invalid-argument-type]
         path=settings.COOKIE_PATH,
         domain=settings.COOKIE_DOMAIN,
     )

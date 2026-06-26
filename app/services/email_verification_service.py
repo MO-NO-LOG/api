@@ -22,7 +22,9 @@ class EmailVerificationService:
 
     @staticmethod
     @valkey_operation
-    async def store_verification_code(client, email: str, code: str, ttl_seconds: int) -> bool:
+    async def store_verification_code(
+        client, email: str, code: str, ttl_seconds: int
+    ) -> bool:
         try:
             key = f"{EmailVerificationService.CODE_PREFIX}{email}"
             await client.setex(key, ttl_seconds, code)

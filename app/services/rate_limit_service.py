@@ -28,9 +28,7 @@ class LoginAttemptService:
             valkey_key = f"{LoginAttemptService.PREFIX}{identifier}"
             count = await client.incr(valkey_key)
             if count == 1:
-                await client.expire(
-                    valkey_key, settings.LOGIN_ATTEMPT_WINDOW_SECONDS
-                )
+                await client.expire(valkey_key, settings.LOGIN_ATTEMPT_WINDOW_SECONDS)
             return int(count)
         except Exception:
             return 0

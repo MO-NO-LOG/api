@@ -1,12 +1,13 @@
 from contextlib import asynccontextmanager
 from functools import wraps
-from typing import Any, AsyncGenerator, Callable, TypeVar
+from typing import Any, AsyncGenerator, Awaitable, Callable, Concatenate, ParamSpec, TypeVar
 
 from valkey.asyncio import Valkey
 
 from app.valkey_client import get_valkey_client
 
-F = TypeVar("F", bound=Callable[..., Any])
+P = ParamSpec("P")
+R = TypeVar("R")
 
 
 @asynccontextmanager
@@ -19,12 +20,14 @@ async def valkey_client() -> AsyncGenerator[Valkey, None]:
         await client.aclose()
 
 
-def valkey_operation(func: F) -> F:
+def valkey_operation(
+    func: Callable[Concatenate[Valkey, P], Awaitable[R]],
+) -> Callable[P, Awaitable[R]]:
     """Decorator that injects a Valkey client as the first positional argument."""
 
     @wraps(func)
-    async def wrapper(*args: Any, **kwargs: Any) -> Any:
+    async def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
         async with valkey_client() as client:
             return await func(client, *args, **kwargs)
 
-    return wrapper  # type: ignore[return-value]
+    return wrapper

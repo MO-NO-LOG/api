@@ -11,7 +11,11 @@ from app.utils import get_password_hash
 
 
 def make_user(
-    nickname: str, email: str, password: str, gender: str | None = None, birth_date: str | None = None
+    nickname: str,
+    email: str,
+    password: str,
+    gender: str | None = None,
+    birth_date: str | None = None,
 ):
     """
     Create a new regular user.

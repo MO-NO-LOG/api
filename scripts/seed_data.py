@@ -8,6 +8,7 @@ Usage:
 import os
 import sys
 from datetime import date
+from typing import cast
 
 # Add the project root to the python path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -234,7 +235,7 @@ def seed_movies(db: Session, genres: list):
 
     movies = []
     for data in movies_data:
-        genre_names = data.pop("genre_names")
+        genre_names: list[str] = cast(list[str], data.pop("genre_names"))
         movie = Movie(**data)
         db.add(movie)
         db.flush()
@@ -275,8 +276,8 @@ def seed_reviews(db: Session, users: list, movies: list):
 
     reviews = []
     for r in reviews_data:
-        user_idx = r.pop("user_idx")
-        movie_idx = r.pop("movie_idx")
+        user_idx: int = int(r.pop("user_idx"))
+        movie_idx: int = int(r.pop("movie_idx"))
         review = Review(uid=users[user_idx].uid, mid=movies[movie_idx].mid, **r)
         db.add(review)
         reviews.append(review)
@@ -296,8 +297,8 @@ def seed_comments(db: Session, users: list, reviews: list):
 
     comments = []
     for c in comments_data:
-        review_idx = c.pop("review_idx")
-        user_idx = c.pop("user_idx")
+        review_idx = int(c.pop("review_idx"))
+        user_idx = int(c.pop("user_idx"))
         comment = Comment(rid=reviews[review_idx].rid, uid=users[user_idx].uid, **c)
         db.add(comment)
         comments.append(comment)

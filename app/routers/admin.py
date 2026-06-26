@@ -54,7 +54,9 @@ def get_dashboard_stats(
 
     review_count_sq = review_count_subquery(db)
     recent_users_raw = (
-        db.query(User, func.coalesce(review_count_sq.c.cnt, 0).label("review_count"))
+        db.query(
+            User, func.coalesce(review_count_sq.c.review_count, 0).label("review_count")
+        )
         .outerjoin(review_count_sq, User.uid == review_count_sq.c.uid)
         .order_by(User.created_at.desc())
         .limit(5)
@@ -96,7 +98,9 @@ def get_all_users(
     offset = (page - 1) * size
     review_count_sq = review_count_subquery(db)
     rows = (
-        db.query(User, func.coalesce(review_count_sq.c.cnt, 0).label("review_count"))
+        db.query(
+            User, func.coalesce(review_count_sq.c.review_count, 0).label("review_count")
+        )
         .outerjoin(review_count_sq, User.uid == review_count_sq.c.uid)
         .order_by(User.created_at.desc())
         .offset(offset)
@@ -105,8 +109,7 @@ def get_all_users(
     )
 
     return [
-        AdminUserResponse.from_user(u, int(review_count))
-        for u, review_count in rows
+        AdminUserResponse.from_user(u, int(review_count)) for u, review_count in rows
     ]
 
 
@@ -166,7 +169,10 @@ def get_all_movies(
     offset = (page - 1) * size
     review_count_sq = review_count_subquery(db)
     rows = (
-        db.query(Movie, func.coalesce(review_count_sq.c.cnt, 0).label("review_count"))
+        db.query(
+            Movie,
+            func.coalesce(review_count_sq.c.review_count, 0).label("review_count"),
+        )
         .outerjoin(review_count_sq, Movie.mid == review_count_sq.c.mid)
         .order_by(Movie.created_at.desc())
         .offset(offset)
@@ -175,8 +181,7 @@ def get_all_movies(
     )
 
     return [
-        AdminMovieResponse.from_movie(m, int(review_count))
-        for m, review_count in rows
+        AdminMovieResponse.from_movie(m, int(review_count)) for m, review_count in rows
     ]
 
 
@@ -228,7 +233,7 @@ def update_movie(
             setattr(movie, model_attr, updates[schema_key])
 
     if "releaseDate" in updates:
-        movie.release_date = parse_release_date(updates["releaseDate"])
+        movie.release_date = parse_release_date(updates["releaseDate"])  # ty:ignore[invalid-assignment]
 
     db.commit()
     return {"message": "Movie updated successfully"}
@@ -422,7 +427,9 @@ async def import_movie_from_tmdb(
         )
 
 
-@router.get("/settings/email-verification", response_model=EmailVerificationSettingsResponse)
+@router.get(
+    "/settings/email-verification", response_model=EmailVerificationSettingsResponse
+)
 async def get_email_verification_setting(
     admin: User = Depends(require_admin),
 ):

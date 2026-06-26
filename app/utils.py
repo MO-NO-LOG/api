@@ -152,7 +152,7 @@ def genre_names(movie) -> List[str]:
 
 def is_owner_or_admin(obj, user: "User") -> bool:
     """Check whether the user owns the object or is an admin."""
-    return obj.uid == user.uid or user.is_admin
+    return bool(obj.uid == user.uid or user.is_admin)
 
 
 def parse_release_date(date_str: Optional[str]) -> Optional[date]:

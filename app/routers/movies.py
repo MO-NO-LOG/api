@@ -83,7 +83,7 @@ def get_movie_detail(movieId: int, db: Session = Depends(get_db)):
 
     return MovieDetailResponse(
         **MovieResponseItem.from_movie(movie).model_dump(),
-        description=movie.dec,
+        description=movie.dec,  # ty: ignore[invalid-argument-type]
     )
 
 

@@ -20,7 +20,7 @@ def make_admin(email: str):
             print(f"User '{email}' is already an admin.")
             return
 
-        user.is_admin = True
+        user.is_admin = True  # ty: ignore[invalid-assignment]
         db.commit()
         print(f"Success: User '{email}' has been promoted to admin.")
 

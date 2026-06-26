@@ -271,7 +271,7 @@ async def upload_profile_image(
             delete_from_s3(old_object_key)
 
         # 데이터베이스 업데이트 (UUID만 저장)
-        current_user.img = str(file_id)
+        current_user.img = str(file_id)  # ty: ignore[invalid-assignment]
         db.commit()
         db.refresh(current_user)
 
@@ -310,7 +310,7 @@ async def delete_profile_image(
     delete_from_s3(object_key)
 
     # 데이터베이스 업데이트
-    current_user.img = None
+    current_user.img = None  # ty:ignore[invalid-assignment]
     db.commit()
 
     return {"message": "Profile image deleted successfully"}

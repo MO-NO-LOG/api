@@ -65,7 +65,7 @@ def _set_review_reaction(
 
     if existing:
         if existing.type != reaction_type:
-            existing.type = reaction_type
+            existing.type = reaction_type  # ty: ignore[invalid-assignment]
             db.commit()
     else:
         db.add(ReviewLike(rid=review_id, uid=current_user.uid, type=reaction_type))
@@ -76,12 +76,12 @@ def _set_review_reaction(
 
 def _comment_reply_item(reply: Comment) -> CommentReplyItem:
     return CommentReplyItem(
-        commentId=reply.cid,
-        reviewId=reply.rid,
-        userId=reply.uid,
+        commentId=reply.cid,  # ty: ignore[invalid-argument-type]
+        reviewId=reply.rid,  # ty: ignore[invalid-argument-type]
+        userId=reply.uid,  # ty: ignore[invalid-argument-type]
         userNickname=reply.user.nickname if reply.user else "Unknown",
-        content=reply.dec,
-        createdAt=reply.created_at,
+        content=reply.dec,  # ty: ignore[invalid-argument-type]
+        createdAt=reply.created_at,  # ty: ignore[invalid-argument-type]
     )
 
 
@@ -98,12 +98,12 @@ def get_reviews_by_movie(movie_id: int, db: Session = Depends(get_db)):
     return {
         "reviews": [
             ReviewResponseItem(
-                reviewId=r.rid,
-                userId=r.uid,
+                reviewId=r.rid,  # ty: ignore[invalid-argument-type]
+                userId=r.uid,  # ty: ignore[invalid-argument-type]
                 userNickname=r.user.nickname if r.user else "Unknown",
-                rating=float(r.rat) if r.rat is not None else 0.0,
-                content=r.dec,
-                createdAt=r.created_at,
+                rating=float(r.rat) if r.rat is not None else 0.0,  # ty: ignore[invalid-argument-type]
+                content=r.dec,  # ty: ignore[invalid-argument-type]
+                createdAt=r.created_at,  # ty: ignore[invalid-argument-type]
             )
             for r in reviews
         ]
@@ -200,12 +200,12 @@ def create_review_comment(
     db.refresh(new_comment)
 
     return ReviewCommentCreateResponse(
-        commentId=new_comment.cid,
-        reviewId=new_comment.rid,
-        userId=current_user.uid,
-        userNickname=current_user.nickname,
-        content=new_comment.dec,
-        createdAt=new_comment.created_at,
+        commentId=new_comment.cid,  # ty: ignore[invalid-argument-type]
+        reviewId=new_comment.rid,  # ty: ignore[invalid-argument-type]
+        userId=current_user.uid,  # ty: ignore[invalid-argument-type]
+        userNickname=current_user.nickname,  # ty: ignore[invalid-argument-type]
+        content=new_comment.dec,  # ty: ignore[invalid-argument-type]
+        createdAt=new_comment.created_at,  # ty: ignore[invalid-argument-type]
     )
 
 

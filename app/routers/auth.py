@@ -44,8 +44,13 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 @router.post("/register", response_model=UserResponse)
 async def register(user: UserCreate, db: Session = Depends(get_db)):
-    email_verification_enabled = await SystemSettingsService.is_email_verification_enabled()
-    if email_verification_enabled and not await EmailVerificationService.is_email_verified(user.email):
+    email_verification_enabled = (
+        await SystemSettingsService.is_email_verification_enabled()
+    )
+    if (
+        email_verification_enabled
+        and not await EmailVerificationService.is_email_verified(user.email)
+    ):
         raise HTTPException(status_code=400, detail="Email verification required")
 
     db_user = db.query(User).filter(User.email == user.email).first()

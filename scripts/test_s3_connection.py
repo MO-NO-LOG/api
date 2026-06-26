@@ -16,7 +16,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 try:
     from botocore.exceptions import ClientError
 except ImportError:
-    ClientError = Exception  # type: ignore
+    ClientError: type[BaseException] = Exception  # type: ignore[assignment]
 
 from app.config import settings
 from app.routers.file import (
@@ -79,7 +79,7 @@ def test_bucket_access():
         print("✅ Bucket exists and accessible!")
         return True
     except ClientError as e:
-        error_code = e.response.get("Error", {}).get("Code")
+        error_code = getattr(e, "response", {}).get("Error", {}).get("Code")
         if error_code == "404":
             print(f"⚠️  Bucket '{settings.S3_BUCKET_NAME}' does not exist")
             print("   Attempting to create bucket...")

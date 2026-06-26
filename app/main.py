@@ -37,12 +37,12 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     )
 
 
-app.add_middleware(SecurityHeadersMiddleware)  # ty:ignore[invalid-argument-type]
-app.add_middleware(RateLimitMiddleware)  # ty:ignore[invalid-argument-type]
-app.add_middleware(CsrfMiddleware)  # ty:ignore[invalid-argument-type]
+app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(RateLimitMiddleware)
+app.add_middleware(CsrfMiddleware)
 
 app.add_middleware(
-    CORSMiddleware,  # ty:ignore[invalid-argument-type]
+    CORSMiddleware,
     allow_origins=[
         "http://localhost:4321",
         "http://localhost:8000",
@@ -52,7 +52,7 @@ app.add_middleware(
         "http://localhost:3000",
         "https://api.mono-log.fun",
         "https://mono-log.fun",
-	"https://piece-rick-serves-pointing.trycloudflare.com"
+        "https://piece-rick-serves-pointing.trycloudflare.com",
     ],
     allow_credentials=True,
     allow_methods=["*"],

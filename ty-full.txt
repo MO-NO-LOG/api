@@ -1,0 +1,245 @@
+error[invalid-assignment]: Object of type `date | None` is not assignable to attribute `release_date` on type `Movie & ~AlwaysFalsy`
+   --> app\routers\admin.py:236:9
+    |
+236 |         movie.release_date = parse_release_date(updates["releaseDate"])
+    |         ^^^^^^^^^^^^^^^^^^
+    |
+
+error[invalid-assignment]: Object of type `str` is not assignable to attribute `img` of type `Column[str]`
+   --> app\routers\file.py:274:9
+    |
+274 |         current_user.img = str(file_id)
+    |         ^^^^^^^^^^^^^^^^
+    |
+
+error[invalid-assignment]: Object of type `None` is not assignable to attribute `img` of type `Column[str]`
+   --> app\routers\file.py:313:5
+    |
+313 |     current_user.img = None
+    |     ^^^^^^^^^^^^^^^^
+    |
+
+error[invalid-argument-type]: Argument is incorrect
+  --> app\routers\movies.py:86:9
+   |
+86 |         description=movie.dec,
+   |         ^^^^^^^^^^^^^^^^^^^^^ Expected `str | None`, found `Column[Unknown]`
+   |
+
+error[invalid-assignment]: Object of type `str` is not assignable to attribute `type` on type `ReviewLike & ~AlwaysFalsy`
+  --> app\routers\reviews.py:68:13
+   |
+68 |             existing.type = reaction_type
+   |             ^^^^^^^^^^^^^
+   |
+
+error[invalid-argument-type]: Argument is incorrect
+  --> app\routers\reviews.py:79:9
+   |
+79 |         commentId=reply.cid,
+   |         ^^^^^^^^^^^^^^^^^^^ Expected `int`, found `Column[Unknown]`
+   |
+
+error[invalid-argument-type]: Argument is incorrect
+  --> app\routers\reviews.py:80:9
+   |
+80 |         reviewId=reply.rid,
+   |         ^^^^^^^^^^^^^^^^^^ Expected `int`, found `Column[Unknown]`
+   |
+
+error[invalid-argument-type]: Argument is incorrect
+  --> app\routers\reviews.py:81:9
+   |
+81 |         userId=reply.uid,
+   |         ^^^^^^^^^^^^^^^^ Expected `int`, found `Column[Unknown]`
+   |
+
+error[invalid-argument-type]: Argument is incorrect
+  --> app\routers\reviews.py:83:9
+   |
+83 |         content=reply.dec,
+   |         ^^^^^^^^^^^^^^^^^ Expected `str`, found `Column[Unknown]`
+   |
+
+error[invalid-argument-type]: Argument is incorrect
+  --> app\routers\reviews.py:84:9
+   |
+84 |         createdAt=reply.created_at,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^ Expected `datetime`, found `Column[datetime]`
+   |
+
+error[invalid-argument-type]: Argument is incorrect
+   --> app\routers\reviews.py:101:17
+    |
+101 |                 reviewId=r.rid,
+    |                 ^^^^^^^^^^^^^^ Expected `int`, found `Column[Unknown]`
+    |
+
+error[invalid-argument-type]: Argument is incorrect
+   --> app\routers\reviews.py:102:17
+    |
+102 |                 userId=r.uid,
+    |                 ^^^^^^^^^^^^ Expected `int`, found `Column[Unknown]`
+    |
+
+error[invalid-argument-type]: Argument to constructor `float.__new__` is incorrect
+   --> app\routers\reviews.py:104:30
+    |
+104 |                 rating=float(r.rat) if r.rat is not None else 0.0,
+    |                              ^^^^^ Expected `str | Buffer | SupportsFloat | SupportsIndex`, found `Column[Decimal]`
+    |
+info: type `Column[Decimal]` is not assignable to any element of the union `str | Buffer | SupportsFloat | SupportsIndex`
+info: ?쒋?? type `Column[Decimal]` is not assignable to protocol `Buffer`
+info: ??  ?붴?? protocol member `__buffer__` is not defined on type `Column[Decimal]`
+info: ?쒋?? type `Column[Decimal]` is not assignable to protocol `SupportsFloat`
+info: ??  ?붴?? protocol member `__float__` is not defined on type `Column[Decimal]`
+info: ?쒋?? type `Column[Decimal]` is not assignable to protocol `SupportsIndex`
+info: ??  ?붴?? protocol member `__index__` is not defined on type `Column[Decimal]`
+info: ?붴?? ... omitted 1 union element without additional context
+info: Function defined here
+   --> stdlib\builtins.pyi:675:9
+    |
+675 |     def __new__(cls, x: ConvertibleToFloat = 0, /) -> Self: ...
+    |         ^^^^^^^      ------------------------- Parameter declared here
+    |
+
+error[invalid-argument-type]: Argument is incorrect
+   --> app\routers\reviews.py:105:17
+    |
+105 |                 content=r.dec,
+    |                 ^^^^^^^^^^^^^ Expected `str`, found `Column[Unknown]`
+    |
+
+error[invalid-argument-type]: Argument is incorrect
+   --> app\routers\reviews.py:106:17
+    |
+106 |                 createdAt=r.created_at,
+    |                 ^^^^^^^^^^^^^^^^^^^^^^ Expected `datetime`, found `Column[datetime]`
+    |
+
+error[invalid-argument-type]: Argument is incorrect
+   --> app\routers\reviews.py:203:9
+    |
+203 |         commentId=new_comment.cid,
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^ Expected `int`, found `Column[Unknown]`
+    |
+
+error[invalid-argument-type]: Argument is incorrect
+   --> app\routers\reviews.py:204:9
+    |
+204 |         reviewId=new_comment.rid,
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^ Expected `int`, found `Column[Unknown]`
+    |
+
+error[invalid-argument-type]: Argument is incorrect
+   --> app\routers\reviews.py:205:9
+    |
+205 |         userId=current_user.uid,
+    |         ^^^^^^^^^^^^^^^^^^^^^^^ Expected `int`, found `Column[Unknown]`
+    |
+
+error[invalid-argument-type]: Argument is incorrect
+   --> app\routers\reviews.py:206:9
+    |
+206 |         userNickname=current_user.nickname,
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Expected `str`, found `Column[str]`
+    |
+
+error[invalid-argument-type]: Argument is incorrect
+   --> app\routers\reviews.py:207:9
+    |
+207 |         content=new_comment.dec,
+    |         ^^^^^^^^^^^^^^^^^^^^^^^ Expected `str`, found `Column[Unknown]`
+    |
+
+error[invalid-argument-type]: Argument is incorrect
+   --> app\routers\reviews.py:208:9
+    |
+208 |         createdAt=new_comment.created_at,
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Expected `datetime`, found `Column[datetime]`
+    |
+
+error[invalid-argument-type]: Argument to bound method `Response.set_cookie` is incorrect
+   --> app\security.py:120:9
+    |
+120 |         samesite=settings.REFRESH_TOKEN_COOKIE_SAMESITE,  # type: ignore[arg-type]
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Expected `Literal["lax", "strict", "none"] | None`, found `str`
+    |
+info: Method defined here
+  --> .venv\Lib\site-packages\starlette\responses.py:89:9
+   |
+89 |     def set_cookie(
+   |         ^^^^^^^^^^
+   |
+  ::: .venv\Lib\site-packages\starlette\responses.py:99:9
+   |
+99 |         samesite: Literal["lax", "strict", "none"] | None = "lax",
+   |         --------------------------------------------------------- Parameter declared here
+   |
+
+error[invalid-return-type]: Return type does not match returned value
+   --> app\utils.py:153:45
+    |
+153 | def is_owner_or_admin(obj, user: "User") -> bool:
+    |                                             ---- Expected `bool` because of return type
+154 |     """Check whether the user owns the object or is an admin."""
+155 |     return obj.uid == user.uid or user.is_admin
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `bool`, found `(Unknown & ~AlwaysFalsy) | Column[Unknown]`
+    |
+info: element `Column[Unknown]` of union `(Unknown & ~AlwaysFalsy) | Column[Unknown]` is not assignable to `bool`
+
+error[invalid-assignment]: Object of type `Literal[True]` is not assignable to attribute `is_admin` on type `User & ~AlwaysFalsy`
+  --> scripts\make_admin.py:23:9
+   |
+23 |         user.is_admin = True
+   |         ^^^^^^^^^^^^^
+   |
+
+error[invalid-assignment]: Object of type `int | str | float` is not assignable to `int`
+   --> scripts\seed_data.py:279:19
+    |
+279 |         user_idx: int = r.pop("user_idx")
+    |                   ---   ^^^^^^^^^^^^^^^^^ Incompatible value of type `int | str | float`
+    |                   |
+    |                   Declared type
+    |
+info: element `str` of union `int | str | float` is not assignable to `int`
+
+error[invalid-assignment]: Object of type `int | str | float` is not assignable to `int`
+   --> scripts\seed_data.py:280:20
+    |
+280 |         movie_idx: int = r.pop("movie_idx")
+    |                    ---   ^^^^^^^^^^^^^^^^^^ Incompatible value of type `int | str | float`
+    |                    |
+    |                    Declared type
+    |
+info: element `str` of union `int | str | float` is not assignable to `int`
+
+error[invalid-assignment]: Object of type `int | str` is not assignable to `int`
+   --> scripts\seed_data.py:300:21
+    |
+300 |         review_idx: int = c.pop("review_idx")
+    |                     ---   ^^^^^^^^^^^^^^^^^^^ Incompatible value of type `int | str`
+    |                     |
+    |                     Declared type
+    |
+info: element `str` of union `int | str` is not assignable to `int`
+
+error[invalid-assignment]: Object of type `int | str` is not assignable to `int`
+   --> scripts\seed_data.py:301:19
+    |
+301 |         user_idx: int = c.pop("user_idx")
+    |                   ---   ^^^^^^^^^^^^^^^^^ Incompatible value of type `int | str`
+    |                   |
+    |                   Declared type
+    |
+info: element `str` of union `int | str` is not assignable to `int`
+
+error[unresolved-attribute]: Object of type `BaseException` has no attribute `response`
+  --> scripts\test_s3_connection.py:82:22
+   |
+82 |         error_code = e.response.get("Error", {}).get("Code")
+   |                      ^^^^^^^^^^
+   |
+
+Found 29 diagnostics
