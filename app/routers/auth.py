@@ -91,6 +91,9 @@ async def is_email_verification_enabled():
 async def send_verification_email(
     payload: EmailVerificationRequest, db: Session = Depends(get_db)
 ):
+    if not await SystemSettingsService.is_email_verification_enabled():
+        raise HTTPException(status_code=400, detail="Email verification is disabled")
+
     identifier = f"verify-email:{payload.email}"
     if await LoginAttemptService.is_locked(identifier):
         raise HTTPException(
@@ -123,6 +126,9 @@ async def send_verification_email(
 
 @router.post("/verify-email/confirm")
 async def confirm_verification_email(payload: EmailVerificationConfirmRequest):
+    if not await SystemSettingsService.is_email_verification_enabled():
+        raise HTTPException(status_code=400, detail="Email verification is disabled")
+
     identifier = f"verify-confirm:{payload.email}"
     if await LoginAttemptService.is_locked(identifier):
         raise HTTPException(
