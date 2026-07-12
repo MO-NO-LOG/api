@@ -1,8 +1,6 @@
 import os
-import re
 import subprocess
 import sys
-from datetime import datetime
 from typing import Optional, cast
 
 import httpx
@@ -192,28 +190,16 @@ def movie_import_tmdb(
     """Import a movie or TV series from a TMDB URL."""
     from app.config import settings
     from app.database import SessionLocal
-    from app.models import Genre, Movie, MovieGenre
+    from app.routers.admin import _parse_tmdb_url, _tmdb_data_to_movie as _persist_tmdb
 
     if not settings.TMDB_API_KEY:
         raise typer.BadParameter(
             "TMDB_API_KEY is not configured. Please set it in .env."
         )
 
-    movie_match = re.search(r"/movie/(\d+)", tmdb_url)
-    tv_match = re.search(r"/tv/(\d+)", tmdb_url)
-
-    if movie_match:
-        content_type = "movie"
-        content_id = movie_match.group(1)
-    elif tv_match:
-        content_type = "tv"
-        content_id = tv_match.group(1)
-    else:
-        raise typer.BadParameter(
-            "Invalid TMDB URL. Use https://www.themoviedb.org/movie/{id} or https://www.themoviedb.org/tv/{id}."
-        )
-
     try:
+        content_type, content_id = _parse_tmdb_url(tmdb_url)
+
         with httpx.Client(timeout=30.0) as client:
             if content_type == "movie":
                 content_response = client.get(
@@ -230,14 +216,6 @@ def movie_import_tmdb(
                 credits_response.raise_for_status()
                 credits_data = credits_response.json()
 
-                director = None
-                for crew in credits_data.get("crew", []):
-                    if crew.get("job") == "Director":
-                        director = crew.get("name")
-                        break
-
-                title = content_data.get("title", "")
-                release_date_str = content_data.get("release_date")
             else:
                 content_response = client.get(
                     f"https://api.themoviedb.org/3/tv/{content_id}",
@@ -253,68 +231,28 @@ def movie_import_tmdb(
                 credits_response.raise_for_status()
                 credits_data = credits_response.json()
 
-                director = None
-                creators = content_data.get("created_by", [])
-                if creators:
-                    director = creators[0].get("name")
+        db = SessionLocal()
+        try:
+            new_movie, genre_names = _persist_tmdb(
+                content_type, content_data, credits_data, db
+            )
+            typer.secho(
+                f"Imported: {new_movie.title} (ID: {new_movie.mid})",
+                fg=typer.colors.GREEN,
+            )
+        except Exception as exc:
+            db.rollback()
+            typer.secho(f"Import failed: {exc}", fg=typer.colors.RED)
+            raise typer.Exit(code=1) from exc
+        finally:
+            db.close()
 
-                if not director:
-                    for crew in credits_data.get("crew", []):
-                        if crew.get("job") in ["Executive Producer", "Producer"]:
-                            director = crew.get("name")
-                            break
-
-                title = content_data.get("name", "")
-                release_date_str = content_data.get("first_air_date")
     except httpx.HTTPStatusError as exc:
         typer.secho(f"TMDB API error: {exc.response.text}", fg=typer.colors.RED)
         raise typer.Exit(code=1) from exc
-
-    poster_url = None
-    if content_data.get("poster_path"):
-        poster_url = (
-            f"https://media.themoviedb.org/t/p/original{content_data['poster_path']}"
-        )
-
-    genre_names = [genre["name"] for genre in content_data.get("genres", [])]
-
-    db = SessionLocal()
-    try:
-        new_movie = Movie(
-            title=title,
-            dec=content_data.get("overview", ""),
-            director=director,
-            poster_url=poster_url,
-            release_date=(
-                datetime.strptime(release_date_str, "%Y-%m-%d").date()
-                if release_date_str
-                else None
-            ),
-            rat=0,
-        )
-
-        db.add(new_movie)
-        db.flush()
-
-        for genre_name in genre_names:
-            genre = db.query(Genre).filter(Genre.name == genre_name).first()
-            if not genre:
-                genre = Genre(name=genre_name)
-                db.add(genre)
-                db.flush()
-
-            db.add(MovieGenre(mid=new_movie.mid, gid=genre.gid))
-
-        db.commit()
-        typer.secho(
-            f"Imported: {new_movie.title} (ID: {new_movie.mid})", fg=typer.colors.GREEN
-        )
-    except Exception as exc:
-        db.rollback()
-        typer.secho(f"Import failed: {exc}", fg=typer.colors.RED)
+    except ValueError as exc:
+        typer.secho(str(exc), fg=typer.colors.RED)
         raise typer.Exit(code=1) from exc
-    finally:
-        db.close()
 
 
 app.add_typer(db_app, name="db")

@@ -23,7 +23,11 @@ from app.schemas import (
     TMDBImportRequest,
 )
 from app.services.system_settings_service import SystemSettingsService
-from app.utils import parse_release_date, review_count_subquery, user_review_count_subquery
+from app.utils import (
+    parse_release_date,
+    review_count_subquery,
+    user_review_count_subquery,
+)
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -34,6 +38,71 @@ def require_admin(current_user: User = Depends(get_current_user)):
             status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required"
         )
     return current_user
+
+
+def _parse_tmdb_url(tmdb_url: str) -> tuple[str, str]:
+    """Extract content type (movie/tv) and ID from a TMDB URL."""
+    movie_match = re.search(r"/movie/(\d+)", tmdb_url)
+    tv_match = re.search(r"/tv/(\d+)", tmdb_url)
+    if movie_match:
+        return "movie", movie_match.group(1)
+    elif tv_match:
+        return "tv", tv_match.group(1)
+    raise ValueError(
+        "Invalid TMDB URL. Expected format: https://www.themoviedb.org/movie/{id} or https://www.themoviedb.org/tv/{id}"
+    )
+
+
+def _tmdb_data_to_movie(
+    content_type: str, content_data: dict, credits_data: dict, db: Session
+) -> tuple[Movie, list[str]]:
+    """Create a Movie (with genres) from parsed TMDB response data."""
+    if content_type == "movie":
+        director = None
+        for crew in credits_data.get("crew", []):
+            if crew.get("job") == "Director":
+                director = crew.get("name")
+                break
+        title = content_data.get("title", "")
+        release_date_str = content_data.get("release_date")
+    else:
+        director = None
+        creators = content_data.get("created_by", [])
+        if creators:
+            director = creators[0].get("name")
+        if not director:
+            for crew in credits_data.get("crew", []):
+                if crew.get("job") in ["Executive Producer", "Producer"]:
+                    director = crew.get("name")
+                    break
+        title = content_data.get("name", "")
+        release_date_str = content_data.get("first_air_date")
+
+    poster_url = None
+    if content_data.get("poster_path"):
+        poster_url = (
+            f"https://media.themoviedb.org/t/p/original{content_data['poster_path']}"
+        )
+
+    genre_names = [g["name"] for g in content_data.get("genres", [])]
+
+    new_movie = Movie(
+        title=title,
+        dec=content_data.get("overview", ""),
+        director=director,
+        poster_url=poster_url,
+        release_date=parse_release_date(release_date_str),
+        rat=0,
+    )
+    db.add(new_movie)
+    db.flush()
+
+    for genre_name in genre_names:
+        genre = _get_or_create_genre(db, genre_name)
+        db.add(MovieGenre(mid=new_movie.mid, gid=genre.gid))
+
+    db.commit()
+    return new_movie, genre_names
 
 
 def _get_or_create_genre(db: Session, name: str) -> Genre:
@@ -224,18 +293,14 @@ def update_movie(
         raise HTTPException(status_code=404, detail="Movie not found")
 
     updates = data.model_dump(exclude_unset=True)
-    field_map = {
-        "title": "title",
-        "description": "dec",
-        "director": "director",
-        "posterUrl": "poster_url",
-    }
-    for schema_key, model_attr in field_map.items():
-        if schema_key in updates:
-            setattr(movie, model_attr, updates[schema_key])
-
-    if "releaseDate" in updates:
-        movie.release_date = parse_release_date(updates["releaseDate"])  # ty:ignore[invalid-assignment]
+    non_direct = {"releaseDate"}
+    for key, value in updates.items():
+        if key == "releaseDate":
+            movie.release_date = parse_release_date(value)  # ty: ignore[invalid-assignment]
+        elif key not in non_direct:
+            # Map schema key to model attribute (title→title, description→dec, etc.)
+            attr = {"description": "dec", "posterUrl": "poster_url"}.get(key, key)
+            setattr(movie, attr, value)
 
     db.commit()
     return {"message": "Movie updated successfully"}
@@ -300,28 +365,9 @@ async def import_movie_from_tmdb(
     - 영화: https://www.themoviedb.org/movie/{movie_id}
     - TV: https://www.themoviedb.org/tv/{tv_id}
     """
-    if not settings.TMDB_API_KEY:
-        raise HTTPException(
-            status_code=500,
-            detail="TMDB API key not configured. Please set TMDB_API_KEY in .env file.",
-        )
-
-    movie_match = re.search(r"/movie/(\d+)", request.tmdbUrl)
-    tv_match = re.search(r"/tv/(\d+)", request.tmdbUrl)
-
-    if movie_match:
-        content_type = "movie"
-        content_id = movie_match.group(1)
-    elif tv_match:
-        content_type = "tv"
-        content_id = tv_match.group(1)
-    else:
-        raise HTTPException(
-            status_code=400,
-            detail="Invalid TMDB URL. Expected format: https://www.themoviedb.org/movie/{id} or https://www.themoviedb.org/tv/{id}",
-        )
-
     try:
+        content_type, content_id = _parse_tmdb_url(request.tmdbUrl)
+
         async with httpx.AsyncClient() as client:
             if content_type == "movie":
                 content_response = await client.get(
@@ -338,15 +384,6 @@ async def import_movie_from_tmdb(
                 credits_response.raise_for_status()
                 credits_data = credits_response.json()
 
-                director = None
-                for crew in credits_data.get("crew", []):
-                    if crew.get("job") == "Director":
-                        director = crew.get("name")
-                        break
-
-                title = content_data.get("title", "")
-                release_date_str = content_data.get("release_date")
-
             else:
                 content_response = await client.get(
                     f"https://api.themoviedb.org/3/tv/{content_id}",
@@ -362,43 +399,9 @@ async def import_movie_from_tmdb(
                 credits_response.raise_for_status()
                 credits_data = credits_response.json()
 
-                director = None
-                creators = content_data.get("created_by", [])
-                if creators:
-                    director = creators[0].get("name")
-
-                if not director:
-                    for crew in credits_data.get("crew", []):
-                        if crew.get("job") in ["Executive Producer", "Producer"]:
-                            director = crew.get("name")
-                            break
-
-                title = content_data.get("name", "")
-                release_date_str = content_data.get("first_air_date")
-
-        poster_url = None
-        if content_data.get("poster_path"):
-            poster_url = f"https://media.themoviedb.org/t/p/original{content_data['poster_path']}"
-
-        genre_names = [genre["name"] for genre in content_data.get("genres", [])]
-
-        new_movie = Movie(
-            title=title,
-            dec=content_data.get("overview", ""),
-            director=director,
-            poster_url=poster_url,
-            release_date=parse_release_date(release_date_str),
-            rat=0,
+        new_movie, genre_names = _tmdb_data_to_movie(
+            content_type, content_data, credits_data, db
         )
-
-        db.add(new_movie)
-        db.flush()
-
-        for genre_name in genre_names:
-            genre = _get_or_create_genre(db, genre_name)
-            db.add(MovieGenre(mid=new_movie.mid, gid=genre.gid))
-
-        db.commit()
 
         return {
             "message": "Content imported successfully",
@@ -422,6 +425,8 @@ async def import_movie_from_tmdb(
             status_code=e.response.status_code,
             detail=f"TMDB API error: {e.response.text}",
         )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         db.rollback()
         raise HTTPException(

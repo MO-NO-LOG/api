@@ -103,10 +103,6 @@ class ReviewReactionRequest(BaseModel):
     reviewId: int
 
 
-class ReviewReactionCancelRequest(BaseModel):
-    reviewId: int
-
-
 class ReviewCommentCreateRequest(BaseModel):
     reviewId: int
     content: str
@@ -119,14 +115,6 @@ class ReviewCommentCreateResponse(BaseModel):
     userNickname: str
     content: str
     createdAt: datetime
-
-
-class ReviewDeleteRequest(BaseModel):
-    reviewId: int
-
-
-class ReviewCommentDeleteRequest(BaseModel):
-    commentId: int
 
 
 # User Detail Schemas
@@ -250,10 +238,6 @@ class ReplyCreateResponse(BaseModel):
     userNickname: str
     content: str
     createdAt: datetime
-
-
-class ReplyDeleteRequest(BaseModel):
-    commentId: int
 
 
 # Favorite Schemas

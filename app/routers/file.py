@@ -6,7 +6,7 @@ from botocore.exceptions import ClientError
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from PIL import Image
 from sqlalchemy.orm import Session
-from uuid_extension import uuid7
+from uuid import uuid7
 
 from app.config import settings
 from app.database import get_db
@@ -29,6 +29,8 @@ ALLOWED_EXTENSIONS = {
     ".tiff",
     ".tif",
 }
+
+_bucket_ready: bool = False
 
 
 def get_s3_client():
@@ -58,7 +60,10 @@ def get_s3_client():
 
 
 def ensure_bucket_exists():
-    """S3 버킷이 존재하는지 확인하고 없으면 생성"""
+    """S3 버킷이 존재하는지 확인하고 없으면 생성 (최초 한 번만 실행)"""
+    global _bucket_ready
+    if _bucket_ready:
+        return True
     s3_client = get_s3_client()
     try:
         s3_client.head_bucket(Bucket=settings.S3_BUCKET_NAME)
@@ -97,8 +102,9 @@ def ensure_bucket_exists():
                     Policy=json.dumps(bucket_policy),
                 )
             except ClientError:
-                # 버킷 생성 실패 시 무시 (이미 존재하거나 권한 문제)
                 pass
+    _bucket_ready = True
+    return True
 
 
 def validate_image_extension(filename: str) -> bool:
@@ -186,28 +192,6 @@ def delete_from_s3(object_key: str) -> bool:
 
     try:
         s3_client.delete_object(
-            Bucket=settings.S3_BUCKET_NAME,
-            Key=object_key,
-        )
-        return True
-    except ClientError:
-        return False
-
-
-def check_s3_object_exists(object_key: str) -> bool:
-    """
-    S3에 객체가 존재하는지 확인
-
-    Args:
-        object_key: 확인할 S3 객체 키
-
-    Returns:
-        존재 여부
-    """
-    s3_client = get_s3_client()
-
-    try:
-        s3_client.head_object(
             Bucket=settings.S3_BUCKET_NAME,
             Key=object_key,
         )

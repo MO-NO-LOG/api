@@ -1,14 +1,14 @@
 from app.config import settings
-from app.services.base import valkey_operation
+from app.valkey_client import get_valkey_client
 
 
 class RateLimitService:
     PREFIX = "rl:"
 
     @staticmethod
-    @valkey_operation
-    async def allow(client, key: str, max_requests: int, window_seconds: int) -> bool:
+    async def allow(key: str, max_requests: int, window_seconds: int) -> bool:
         try:
+            client = get_valkey_client()
             valkey_key = f"{RateLimitService.PREFIX}{key}"
             count = await client.incr(valkey_key)
             if count == 1:
@@ -22,9 +22,9 @@ class LoginAttemptService:
     PREFIX = "login_attempts:"
 
     @staticmethod
-    @valkey_operation
-    async def register_failure(client, identifier: str) -> int:
+    async def register_failure(identifier: str) -> int:
         try:
+            client = get_valkey_client()
             valkey_key = f"{LoginAttemptService.PREFIX}{identifier}"
             count = await client.incr(valkey_key)
             if count == 1:
@@ -34,18 +34,18 @@ class LoginAttemptService:
             return 0
 
     @staticmethod
-    @valkey_operation
-    async def reset(client, identifier: str) -> None:
+    async def reset(identifier: str) -> None:
         try:
+            client = get_valkey_client()
             valkey_key = f"{LoginAttemptService.PREFIX}{identifier}"
             await client.delete(valkey_key)
         except Exception:
             return
 
     @staticmethod
-    @valkey_operation
-    async def is_locked(client, identifier: str) -> bool:
+    async def is_locked(identifier: str) -> bool:
         try:
+            client = get_valkey_client()
             valkey_key = f"{LoginAttemptService.PREFIX}{identifier}"
             count = await client.get(valkey_key)
             return int(count) >= settings.LOGIN_MAX_ATTEMPTS if count else False

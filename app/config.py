@@ -70,4 +70,4 @@ class Settings(BaseSettings):
         env_file = ".env"
 
 
-settings = Settings()  # ty:ignore[missing-argument]
+settings = Settings()

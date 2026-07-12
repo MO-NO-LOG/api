@@ -3,8 +3,8 @@ from typing import Optional
 
 from jose import JWTError
 
-from app.services.base import valkey_operation
 from app.utils import decode_token
+from app.valkey_client import get_valkey_client
 
 
 class TokenBlacklistService:
@@ -18,8 +18,7 @@ class TokenBlacklistService:
     BLACKLIST_PREFIX = "blacklist:"
 
     @staticmethod
-    @valkey_operation
-    async def add_to_blacklist(client, token: str) -> bool:
+    async def add_to_blacklist(token: str) -> bool:
         """
         Add a token to the blacklist.
 
@@ -44,6 +43,7 @@ class TokenBlacklistService:
 
             # Only blacklist if token hasn't expired yet
             if ttl_seconds > 0:
+                client = get_valkey_client()
                 key = f"{TokenBlacklistService.BLACKLIST_PREFIX}{token}"
                 await client.setex(key, ttl_seconds, "blacklisted")
                 return True
@@ -55,8 +55,7 @@ class TokenBlacklistService:
             return False
 
     @staticmethod
-    @valkey_operation
-    async def is_blacklisted(client, token: str) -> bool:
+    async def is_blacklisted(token: str) -> bool:
         """
         Check if a token is blacklisted.
 
@@ -67,6 +66,7 @@ class TokenBlacklistService:
             True if token is blacklisted, False otherwise
         """
         try:
+            client = get_valkey_client()
             key = f"{TokenBlacklistService.BLACKLIST_PREFIX}{token}"
             result = await client.exists(key)
             return bool(result > 0)
@@ -74,26 +74,6 @@ class TokenBlacklistService:
             print(f"Error checking blacklist: {e}")
             # Fail open - if Valkey is down, allow the request
             # (token validation will still happen via JWT signature)
-            return False
-
-    @staticmethod
-    @valkey_operation
-    async def remove_from_blacklist(client, token: str) -> bool:
-        """
-        Remove a token from the blacklist (rarely used).
-
-        Args:
-            token: JWT token to remove
-
-        Returns:
-            True if successfully removed, False otherwise
-        """
-        try:
-            key = f"{TokenBlacklistService.BLACKLIST_PREFIX}{token}"
-            result = await client.delete(key)
-            return bool(result > 0)
-        except Exception as e:
-            print(f"Error removing token from blacklist: {e}")
             return False
 
 
@@ -108,9 +88,7 @@ class RefreshTokenService:
     REFRESH_TOKEN_PREFIX = "refresh_token:"
 
     @staticmethod
-    @valkey_operation
     async def store_refresh_token(
-        client,
         email: str,
         refresh_token: str,
         expires_delta: Optional[timedelta] = None,
@@ -134,6 +112,7 @@ class RefreshTokenService:
 
                 ttl_seconds = settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60
 
+            client = get_valkey_client()
             key = f"{RefreshTokenService.REFRESH_TOKEN_PREFIX}{email}"
             await client.setex(key, ttl_seconds, refresh_token)
             return True
@@ -143,8 +122,7 @@ class RefreshTokenService:
             return False
 
     @staticmethod
-    @valkey_operation
-    async def get_refresh_token(client, email: str) -> Optional[str]:
+    async def get_refresh_token(email: str) -> Optional[str]:
         """
         Get the stored refresh token for a user.
 
@@ -155,6 +133,7 @@ class RefreshTokenService:
             Refresh token if exists, None otherwise
         """
         try:
+            client = get_valkey_client()
             key = f"{RefreshTokenService.REFRESH_TOKEN_PREFIX}{email}"
             result = await client.get(key)
             return str(result) if result else None
@@ -182,8 +161,7 @@ class RefreshTokenService:
             return False
 
     @staticmethod
-    @valkey_operation
-    async def delete_refresh_token(client, email: str) -> bool:
+    async def delete_refresh_token(email: str) -> bool:
         """
         Delete a user's refresh token (e.g., on logout).
 
@@ -194,6 +172,7 @@ class RefreshTokenService:
             True if successfully deleted, False otherwise
         """
         try:
+            client = get_valkey_client()
             key = f"{RefreshTokenService.REFRESH_TOKEN_PREFIX}{email}"
             result = await client.delete(key)
             return bool(result > 0)

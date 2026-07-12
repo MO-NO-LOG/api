@@ -1,5 +1,5 @@
 from app.config import settings
-from app.services.base import valkey_operation
+from app.valkey_client import get_valkey_client
 
 
 class SystemSettingsService:
@@ -12,9 +12,9 @@ class SystemSettingsService:
         return str(value).lower() not in ("false", "0", "disabled", "no", "off")
 
     @staticmethod
-    @valkey_operation
-    async def is_email_verification_enabled(client) -> bool:
+    async def is_email_verification_enabled() -> bool:
         try:
+            client = get_valkey_client()
             value = await client.get(
                 SystemSettingsService.EMAIL_VERIFICATION_ENABLED_KEY
             )
@@ -23,9 +23,9 @@ class SystemSettingsService:
             return settings.EMAIL_VERIFICATION_ENABLED
 
     @staticmethod
-    @valkey_operation
-    async def set_email_verification_enabled(client, enabled: bool) -> bool:
+    async def set_email_verification_enabled(enabled: bool) -> bool:
         try:
+            client = get_valkey_client()
             await client.set(
                 SystemSettingsService.EMAIL_VERIFICATION_ENABLED_KEY,
                 "enabled" if enabled else "disabled",

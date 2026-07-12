@@ -1,5 +1,5 @@
 from datetime import date, datetime, timedelta, timezone
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, Optional
 
 import bcrypt
 from jose import jwt
@@ -154,11 +154,6 @@ def user_review_count_subquery(db: Session):
         .group_by(Review.uid)
         .subquery()
     )
-
-
-def genre_names(movie) -> List[str]:
-    """Return a sorted list of genre names for a movie."""
-    return sorted({g.genre.name for g in movie.genres if g.genre})
 
 
 def is_owner_or_admin(obj, user: "User") -> bool:

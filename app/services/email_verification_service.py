@@ -6,7 +6,7 @@ from email.utils import formataddr
 from pathlib import Path
 
 from app.config import settings
-from app.services.base import valkey_operation
+from app.valkey_client import get_valkey_client
 
 
 class EmailVerificationService:
@@ -15,17 +15,16 @@ class EmailVerificationService:
     TEMPLATE_PATH = (
         Path(__file__).resolve().parents[1] / "templates" / "email_verification.html"
     )
+    _template_cache: str | None = None
 
     @staticmethod
     def generate_code() -> str:
         return f"{secrets.randbelow(1000000):06d}"
 
     @staticmethod
-    @valkey_operation
-    async def store_verification_code(
-        client, email: str, code: str, ttl_seconds: int
-    ) -> bool:
+    async def store_verification_code(email: str, code: str, ttl_seconds: int) -> bool:
         try:
+            client = get_valkey_client()
             key = f"{EmailVerificationService.CODE_PREFIX}{email}"
             await client.setex(key, ttl_seconds, code)
             return True
@@ -34,9 +33,9 @@ class EmailVerificationService:
             return False
 
     @staticmethod
-    @valkey_operation
-    async def verify_code(client, email: str, code: str, ttl_seconds: int) -> bool:
+    async def verify_code(email: str, code: str, ttl_seconds: int) -> bool:
         try:
+            client = get_valkey_client()
             code_key = f"{EmailVerificationService.CODE_PREFIX}{email}"
             stored_code = await client.get(code_key)
             if not stored_code or stored_code != code:
@@ -51,9 +50,9 @@ class EmailVerificationService:
             return False
 
     @staticmethod
-    @valkey_operation
-    async def is_email_verified(client, email: str) -> bool:
+    async def is_email_verified(email: str) -> bool:
         try:
+            client = get_valkey_client()
             key = f"{EmailVerificationService.VERIFIED_PREFIX}{email}"
             result = await client.exists(key)
             return bool(result > 0)
@@ -62,9 +61,9 @@ class EmailVerificationService:
             return False
 
     @staticmethod
-    @valkey_operation
-    async def clear_verification_code(client, email: str) -> bool:
+    async def clear_verification_code(email: str) -> bool:
         try:
+            client = get_valkey_client()
             key = f"{EmailVerificationService.CODE_PREFIX}{email}"
             result = await client.delete(key)
             return bool(result > 0)
@@ -73,9 +72,9 @@ class EmailVerificationService:
             return False
 
     @staticmethod
-    @valkey_operation
-    async def clear_email_verified(client, email: str) -> bool:
+    async def clear_email_verified(email: str) -> bool:
         try:
+            client = get_valkey_client()
             key = f"{EmailVerificationService.VERIFIED_PREFIX}{email}"
             result = await client.delete(key)
             return bool(result > 0)
@@ -103,10 +102,13 @@ class EmailVerificationService:
 
     @staticmethod
     def _render_html_template(code: str, ttl_minutes: int) -> str:
-        template = EmailVerificationService.TEMPLATE_PATH.read_text(encoding="utf-8")
-        return template.replace("{{code}}", code).replace(
-            "{{ttl_minutes}}", str(ttl_minutes)
-        )
+        if EmailVerificationService._template_cache is None:
+            EmailVerificationService._template_cache = (
+                EmailVerificationService.TEMPLATE_PATH.read_text(encoding="utf-8")
+            )
+        return EmailVerificationService._template_cache.replace(
+            "{{code}}", code
+        ).replace("{{ttl_minutes}}", str(ttl_minutes))
 
     @staticmethod
     def _send_email_sync(to_email: str, code: str) -> None:

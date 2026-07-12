@@ -88,25 +88,19 @@ def validate_csrf_tokens(
     """
     Validate CSRF tokens using double-submit cookie pattern.
     Both tokens must be present and must match.
-    If signature verification is enabled, verify signature as well.
+    Verifies HMAC signatures on both tokens.
     """
     if not cookie_token or not header_token:
         return False
 
-    # Check if tokens use signature format
-    if "." in cookie_token and "." in header_token:
-        # Verify signatures
-        cookie_valid, cookie_raw = verify_csrf_token_signature(cookie_token)
-        header_valid, header_raw = verify_csrf_token_signature(header_token)
+    cookie_valid, cookie_raw = verify_csrf_token_signature(cookie_token)
+    header_valid, header_raw = verify_csrf_token_signature(header_token)
 
-        if not cookie_valid or not header_valid:
-            return False
+    if not cookie_valid or not header_valid:
+        return False
 
-        # Compare raw tokens using constant-time comparison
-        return hmac.compare_digest(cookie_raw or "", header_raw or "")
-
-    # Simple comparison for non-signed tokens (legacy support)
-    return hmac.compare_digest(cookie_token, header_token)
+    # Compare raw tokens using constant-time comparison
+    return hmac.compare_digest(cookie_raw or "", header_raw or "")
 
 
 def set_refresh_cookie(response: Response, refresh_token: str, max_age: int) -> None:

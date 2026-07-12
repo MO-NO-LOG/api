@@ -13,16 +13,12 @@ from app.schemas import (
     CommentReplyItem,
     ReviewCommentCreateRequest,
     ReviewCommentCreateResponse,
-    ReviewCommentDeleteRequest,
     ReviewCreateRequest,
-    ReviewDeleteRequest,
     ReviewListResponse,
-    ReviewReactionCancelRequest,
     ReviewReactionRequest,
     ReviewResponseItem,
     ReplyCreateRequest,
     ReplyCreateResponse,
-    ReplyDeleteRequest,
 )
 from app.utils import is_owner_or_admin
 
@@ -158,7 +154,7 @@ def dislike_review(
 
 @router.post("/reaction/cancel")
 def cancel_review_reaction(
-    req: ReviewReactionCancelRequest,
+    req: ReviewReactionRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -209,13 +205,13 @@ def create_review_comment(
     )
 
 
-@router.post("/delete")
+@router.delete("/{review_id}")
 def delete_review(
-    req: ReviewDeleteRequest,
+    review_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    review = db.query(Review).filter(Review.rid == req.reviewId).first()
+    review = db.query(Review).filter(Review.rid == review_id).first()
     if not review:
         raise HTTPException(status_code=404, detail="Review not found")
 
@@ -225,16 +221,16 @@ def delete_review(
     db.delete(review)
     db.commit()
 
-    return {"message": "Review deleted", "reviewId": req.reviewId}
+    return {"message": "Review deleted", "reviewId": review_id}
 
 
-@router.post("/comment/delete")
+@router.delete("/comment/{comment_id}")
 def delete_review_comment(
-    req: ReviewCommentDeleteRequest,
+    comment_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    comment = db.query(Comment).filter(Comment.cid == req.commentId).first()
+    comment = db.query(Comment).filter(Comment.cid == comment_id).first()
     if not comment:
         raise HTTPException(status_code=404, detail="Comment not found")
 
@@ -244,7 +240,7 @@ def delete_review_comment(
     db.delete(comment)
     db.commit()
 
-    return {"message": "Comment deleted", "commentId": req.commentId}
+    return {"message": "Comment deleted", "commentId": comment_id}
 
 
 @router.post("/comment/list", response_model=CommentListResponse)
@@ -319,13 +315,13 @@ def create_reply(
     )
 
 
-@router.post("/comment/reply/delete")
+@router.delete("/comment/reply/{comment_id}")
 def delete_reply(
-    req: ReplyDeleteRequest,
+    comment_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    reply = db.query(Comment).filter(Comment.cid == req.commentId).first()
+    reply = db.query(Comment).filter(Comment.cid == comment_id).first()
     if not reply:
         raise HTTPException(status_code=404, detail="Reply not found")
 
@@ -338,4 +334,4 @@ def delete_reply(
     db.delete(reply)
     db.commit()
 
-    return {"message": "Reply deleted", "commentId": req.commentId}
+    return {"message": "Reply deleted", "commentId": comment_id}
