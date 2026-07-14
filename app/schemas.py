@@ -50,7 +50,7 @@ class MovieResponseItem(BaseModel):
     title: str
     posterUrl: Optional[str] = None
     genres: List[str] = []
-    averageRating: int
+    averageRating: float
     releaseDate: Optional[date] = None
 
     @classmethod
@@ -60,7 +60,7 @@ class MovieResponseItem(BaseModel):
             title=movie.title,
             posterUrl=movie.poster_url,
             genres=sorted({g.genre.name for g in movie.genres if g.genre}),
-            averageRating=round(average_rating),
+            averageRating=round(average_rating, 1),
             releaseDate=movie.release_date,
         )
 
@@ -175,7 +175,7 @@ class MovieRankingItem(BaseModel):
     title: str
     posterUrl: Optional[str] = None
     genres: List[str] = []
-    averageRating: int
+    averageRating: float
     releaseDate: Optional[date] = None
     reviewCount: int
 
@@ -187,7 +187,7 @@ class MovieRankingItem(BaseModel):
             title=movie.title,
             posterUrl=movie.poster_url,
             genres=sorted({g.genre.name for g in movie.genres if g.genre}),
-            averageRating=round(average_rating),
+            averageRating=round(average_rating, 1),
             releaseDate=movie.release_date,
             reviewCount=review_count,
         )
@@ -299,7 +299,7 @@ class AdminMovieResponse(BaseModel):
     director: Optional[str] = None
     posterUrl: Optional[str] = None
     releaseDate: Optional[str] = None
-    averageRating: int = 0
+    averageRating: float = 0
     reviewCount: int = 0
     createdAt: datetime
 
@@ -314,7 +314,7 @@ class AdminMovieResponse(BaseModel):
             director=movie.director,
             posterUrl=movie.poster_url,
             releaseDate=str(movie.release_date) if movie.release_date else None,
-            averageRating=round(average_rating),
+            averageRating=round(average_rating, 1),
             reviewCount=review_count,
             createdAt=movie.created_at,
         )
