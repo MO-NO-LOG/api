@@ -37,9 +37,15 @@ class User(Base):
         nullable=True,  # Gender: M, F, O (Other)
     )
     is_admin = Column(Boolean, default=False)  # Admin Privileges
+    oauth_provider = Column(String(20), nullable=True, default=None)  # "kakao" or None
+    oauth_id = Column(String(100), nullable=True, default=None)  # Kakao user ID
     created_at = Column(
         DateTime(timezone=True), server_default=func.now()
     )  # Account Creation Timestamp
+
+    __table_args__ = (
+        UniqueConstraint("oauth_provider", "oauth_id", name="uq_user_oauth"),
+    )
 
     reviews = relationship(
         "Review",
