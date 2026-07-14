@@ -4,6 +4,7 @@ from urllib.parse import urlencode
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.orm import Session
 
+import bcrypt
 from app.config import settings
 from app.database import get_db
 import httpx
@@ -57,15 +58,22 @@ async def kakao_callback(
     db: Session = Depends(get_db),
 ):
     """Handle Kakao OAuth callback."""
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        token_resp = await client.post(
-            KAKAO_TOKEN_URL,
-            data={
-                "grant_type": "authorization_code",
-                "client_id": settings.KAKAO_REST_API_KEY,
-                "redirect_uri": settings.KAKAO_REDIRECT_URI,
-                "code": code,
-            },
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            token_resp = await client.post(
+                KAKAO_TOKEN_URL,
+                data={
+                    "grant_type": "authorization_code",
+                    "client_id": settings.KAKAO_REST_API_KEY,
+                    "redirect_uri": settings.KAKAO_REDIRECT_URI,
+                    "code": code,
+                },
+            )
+    except (httpx.HTTPError, Exception) as exc:
+        print(f"Kakao token error: {exc}")
+        return Response(
+            status_code=307,
+            headers={"Location": f"{FRONTEND_URL}/login.html?error=kakao_network"},
         )
 
     if token_resp.status_code != 200:
@@ -77,10 +85,17 @@ async def kakao_callback(
     kakao_token = token_resp.json()
     access_token = kakao_token["access_token"]
 
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        profile_resp = await client.get(
-            KAKAO_PROFILE_URL,
-            headers={"Authorization": f"Bearer {access_token}"},
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            profile_resp = await client.get(
+                KAKAO_PROFILE_URL,
+                headers={"Authorization": f"Bearer {access_token}"},
+            )
+    except (httpx.HTTPError, Exception) as exc:
+        print(f"Kakao profile error: {exc}")
+        return Response(
+            status_code=307,
+            headers={"Location": f"{FRONTEND_URL}/login.html?error=kakao_profile_failed"},
         )
 
     if profile_resp.status_code != 200:
@@ -124,7 +139,6 @@ async def kakao_callback(
                 headers={"Location": f"{FRONTEND_URL}/login.html?error=kakao_duplicate"},
             )
 
-        import bcrypt
         random_pw = bcrypt.hashpw(kakao_id.encode(), bcrypt.gensalt(rounds=12)).decode()
 
         user = User(
@@ -248,6 +262,17 @@ async def complete_profile(
         response,
         refresh,
         max_age=int(timedelta(days=7).total_seconds()),
+    )
+
+    response.set_cookie(
+        key="oauth_access_token",
+        value=access,
+        max_age=int(timedelta(minutes=30).total_seconds()),
+        httponly=False,
+        secure=settings.COOKIE_SECURE,
+        samesite=settings.COOKIE_SAMESITE,
+        path=settings.COOKIE_PATH,
+        domain=settings.COOKIE_DOMAIN if settings.COOKIE_DOMAIN else None,
     )
 
     return {
