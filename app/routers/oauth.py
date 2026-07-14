@@ -1,14 +1,17 @@
+import hashlib
+import hmac as hmac_mod
+import logging
+import secrets
 from datetime import timedelta
 from urllib.parse import urlencode
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+import bcrypt
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+import httpx
 from sqlalchemy.orm import Session
 
-import bcrypt
 from app.config import settings
 from app.database import get_db
-import httpx
-
 from app.models import User
 from app.schemas import ProfileCompleteRequest, TokenResponse
 from app.security import set_refresh_cookie
@@ -19,6 +22,8 @@ from app.utils import (
     create_setup_token,
     decode_setup_token,
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/oauth", tags=["oauth"])
 
@@ -45,19 +50,55 @@ async def kakao_login():
     }
     auth_url = f"{KAKAO_AUTH_URL}?{urlencode(params)}"
 
-    return Response(
+    state = secrets.token_urlsafe(32)
+    state_sig = hmac_mod.new(
+        settings.SECRET_KEY.encode(), state.encode(), hashlib.sha256
+    ).hexdigest()
+    signed_state = f"{state}.{state_sig}"
+
+    response = Response(
         status_code=307,
         headers={"Location": auth_url},
     )
+    response.set_cookie(
+        key="oauth_state",
+        value=signed_state,
+        max_age=600,
+        httponly=True,
+        secure=settings.COOKIE_SECURE,
+        samesite="lax",
+        path="/",
+    )
+    return response
 
 
 @router.get("/kakao/callback")
 async def kakao_callback(
     code: str,
+    request: Request,
     response: Response,
     db: Session = Depends(get_db),
 ):
     """Handle Kakao OAuth callback."""
+    signed_state = request.cookies.get("oauth_state") if request else None
+    if not signed_state:
+        return Response(
+            status_code=307,
+            headers={"Location": f"{FRONTEND_URL}/login.html?error=oauth_state_missing"},
+        )
+    try:
+        state_value, state_sig = signed_state.rsplit(".", 1)
+        expected_sig = hmac_mod.new(
+            settings.SECRET_KEY.encode(), state_value.encode(), hashlib.sha256
+        ).hexdigest()
+        if not hmac_mod.compare_digest(state_sig, expected_sig):
+            raise ValueError("Invalid state signature")
+    except (ValueError, AttributeError):
+        return Response(
+            status_code=307,
+            headers={"Location": f"{FRONTEND_URL}/login.html?error=oauth_state_invalid"},
+        )
+
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
             token_resp = await client.post(
@@ -69,8 +110,8 @@ async def kakao_callback(
                     "code": code,
                 },
             )
-    except (httpx.HTTPError, Exception) as exc:
-        print(f"Kakao token error: {exc}")
+    except httpx.HTTPError as exc:
+        logger.warning("Kakao token error: %s", exc)
         return Response(
             status_code=307,
             headers={"Location": f"{FRONTEND_URL}/login.html?error=kakao_network"},
@@ -91,8 +132,8 @@ async def kakao_callback(
                 KAKAO_PROFILE_URL,
                 headers={"Authorization": f"Bearer {access_token}"},
             )
-    except (httpx.HTTPError, Exception) as exc:
-        print(f"Kakao profile error: {exc}")
+    except httpx.HTTPError as exc:
+        logger.warning("Kakao profile error: %s", exc)
         return Response(
             status_code=307,
             headers={"Location": f"{FRONTEND_URL}/login.html?error=kakao_profile_failed"},
@@ -130,28 +171,37 @@ async def kakao_callback(
 
     if not user:
         if not email:
-            email = f"kakao_{kakao_id}@placeholder.local"
+            placeholder_email = f"kakao_{kakao_id}@placeholder.local"
+            existing_by_oauth = db.query(User).filter(
+                User.oauth_id == kakao_id,
+                User.oauth_provider == "kakao",
+            ).first()
+            if existing_by_oauth:
+                user = existing_by_oauth
+            else:
+                email = placeholder_email
 
-        existing_placeholder = db.query(User).filter(User.email == email).first()
-        if existing_placeholder:
-            return Response(
-                status_code=307,
-                headers={"Location": f"{FRONTEND_URL}/login.html?error=kakao_duplicate"},
+        if not user:
+            existing_placeholder = db.query(User).filter(User.email == email).first()
+            if existing_placeholder and existing_placeholder.oauth_id != kakao_id:
+                return Response(
+                    status_code=307,
+                    headers={"Location": f"{FRONTEND_URL}/login.html?error=kakao_duplicate"},
+                )
+
+            random_pw = bcrypt.hashpw(kakao_id.encode(), bcrypt.gensalt(rounds=12)).decode()
+
+            user = User(
+                email=email,
+                password=random_pw,
+                nickname=nickname or f"kakao_{kakao_id}",
+                gender=gender,
+                oauth_provider="kakao",
+                oauth_id=kakao_id,
             )
-
-        random_pw = bcrypt.hashpw(kakao_id.encode(), bcrypt.gensalt(rounds=12)).decode()
-
-        user = User(
-            email=email,
-            password=random_pw,
-            nickname=nickname or f"kakao_{kakao_id}",
-            gender=gender,
-            oauth_provider="kakao",
-            oauth_id=kakao_id,
-        )
-        db.add(user)
-        db.commit()
-        db.refresh(user)
+            db.add(user)
+            db.commit()
+            db.refresh(user)
 
     missing = []
     if not user.email or user.email.endswith("@placeholder.local"):
@@ -165,6 +215,7 @@ async def kakao_callback(
 
     if missing:
         setup_token = create_setup_token(str(user.email))
+        response.delete_cookie("oauth_state", path="/")
         return Response(
             status_code=307,
             headers={
@@ -193,6 +244,7 @@ async def kakao_callback(
         max_age=int(timedelta(days=7).total_seconds()),
     )
 
+    response.delete_cookie("oauth_state", path="/")
     response.set_cookie(
         key="oauth_access_token",
         value=access,
@@ -226,6 +278,21 @@ async def complete_profile(
     user = db.query(User).filter(User.email == email).first()
     if not user:
         raise HTTPException(status_code=400, detail="User not found")
+
+    still_missing = []
+    if (not user.email or user.email.endswith("@placeholder.local")) and not payload.email:
+        still_missing.append("email")
+    if not user.nickname and not payload.nickname:
+        still_missing.append("nickname")
+    if not user.gender and not payload.gender:
+        still_missing.append("gender")
+    if not user.birth_date and not payload.birth_date:
+        still_missing.append("birth_date")
+    if still_missing:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Missing required fields: {','.join(still_missing)}",
+        )
 
     if payload.email and user.email.endswith("@placeholder.local"):
         existing = db.query(User).filter(User.email == payload.email).first()
