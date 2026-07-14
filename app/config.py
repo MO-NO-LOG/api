@@ -68,6 +68,7 @@ class Settings(BaseSettings):
 
     # Kakao OAuth
     KAKAO_REST_API_KEY: str = ""
+    KAKAO_CLIENT_SECRET: str = ""
     KAKAO_REDIRECT_URI: str = ""
 
     class Config:

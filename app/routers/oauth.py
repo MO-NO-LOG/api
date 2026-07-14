@@ -101,14 +101,17 @@ async def kakao_callback(
 
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
+            token_data = {
+                "grant_type": "authorization_code",
+                "client_id": settings.KAKAO_REST_API_KEY,
+                "redirect_uri": settings.KAKAO_REDIRECT_URI,
+                "code": code,
+            }
+            if settings.KAKAO_CLIENT_SECRET:
+                token_data["client_secret"] = settings.KAKAO_CLIENT_SECRET
             token_resp = await client.post(
                 KAKAO_TOKEN_URL,
-                data={
-                    "grant_type": "authorization_code",
-                    "client_id": settings.KAKAO_REST_API_KEY,
-                    "redirect_uri": settings.KAKAO_REDIRECT_URI,
-                    "code": code,
-                },
+                data=token_data,
             )
     except httpx.HTTPError as exc:
         logger.warning("Kakao token error: %s", exc)
