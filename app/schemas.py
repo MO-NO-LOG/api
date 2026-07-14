@@ -394,8 +394,6 @@ class EmailVerificationSettingsUpdateRequest(BaseModel):
 
 
 # OAuth Schemas
-class KakaoLoginResponse(BaseModel):
-    authorization_url: str
 
 
 class ProfileCompleteRequest(BaseModel):
