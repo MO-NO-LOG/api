@@ -391,3 +391,26 @@ class EmailVerificationSettingsResponse(BaseModel):
 
 class EmailVerificationSettingsUpdateRequest(BaseModel):
     enabled: bool
+
+
+# OAuth Schemas
+class KakaoLoginResponse(BaseModel):
+    authorization_url: str
+
+
+class ProfileCompleteRequest(BaseModel):
+    setup_token: str
+    email: Optional[EmailStr] = None
+    nickname: Optional[str] = None
+    gender: Optional[str] = Field(None, pattern=r"^[MFO]$")
+    birth_date: Optional[date] = None
+
+
+class SetupTokenPayload(BaseModel):
+    sub: str  # user email
+    purpose: str = "profile_setup"
+    exp: Optional[datetime] = None
+
+
+class OAuthProfileMissing(BaseModel):
+    missing: List[str] = []
