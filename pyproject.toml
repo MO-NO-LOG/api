@@ -38,3 +38,9 @@ py-modules = ["main"]
 
 [tool.setuptools.packages.find]
 include = ["app", "app.*", "scripts", "scripts.*"]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
+]
