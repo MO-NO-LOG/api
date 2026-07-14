@@ -40,6 +40,9 @@ class CsrfMiddleware(BaseHTTPMiddleware):
         "/api/auth/verify-email/confirm",
         "/api/auth/verify-email/status",
         "/api/auth/csrf",
+        "/api/oauth/kakao/login",
+        "/api/oauth/kakao/callback",
+        "/api/oauth/kakao/complete-profile",
     }
 
     # Safe HTTP methods that don't modify state
