@@ -24,11 +24,13 @@ def get_movie_ranking(
         db.query(
             Movie,
             func.coalesce(review_count_subq.c.review_count, 0).label("review_count"),
+            func.coalesce(review_count_subq.c.avg_rating, 0.0).label("avg_rating"),
         )
         .outerjoin(review_count_subq, Movie.mid == review_count_subq.c.mid)
         .options(joinedload(Movie.genres).joinedload(MovieGenre.genre))
         .order_by(
-            desc(Movie.rat), desc(func.coalesce(review_count_subq.c.review_count, 0))
+            desc(func.coalesce(review_count_subq.c.avg_rating, 0.0)),
+            desc(func.coalesce(review_count_subq.c.review_count, 0)),
         )
         .limit(limit)
         .all()
@@ -36,7 +38,9 @@ def get_movie_ranking(
 
     return {
         "movies": [
-            MovieRankingItem.from_movie(rank, m, int(review_count))
-            for rank, (m, review_count) in enumerate(movies, start=1)
+            MovieRankingItem.from_movie(
+                rank, m, int(review_count), average_rating=float(avg_rating)
+            )
+            for rank, (m, review_count, avg_rating) in enumerate(movies, start=1)
         ]
     }

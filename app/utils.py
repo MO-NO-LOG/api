@@ -135,11 +135,15 @@ def get_profile_image_url(img_uuid: Optional[str]) -> Optional[str]:
 
 
 def review_count_subquery(db: Session):
-    """Return a subquery that counts reviews per movie."""
+    """Return a subquery that counts reviews and computes average rating per movie."""
     from app.models import Review
 
     return (
-        db.query(Review.mid, func.count(Review.rid).label("review_count"))
+        db.query(
+            Review.mid,
+            func.count(Review.rid).label("review_count"),
+            func.avg(Review.rat).label("avg_rating"),
+        )
         .group_by(Review.mid)
         .subquery()
     )

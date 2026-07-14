@@ -54,13 +54,13 @@ class MovieResponseItem(BaseModel):
     releaseDate: Optional[date] = None
 
     @classmethod
-    def from_movie(cls, movie) -> "MovieResponseItem":
+    def from_movie(cls, movie, average_rating: float = 0.0) -> "MovieResponseItem":
         return cls(
             id=movie.mid,
             title=movie.title,
             posterUrl=movie.poster_url,
             genres=sorted({g.genre.name for g in movie.genres if g.genre}),
-            averageRating=float(movie.rat) if movie.rat is not None else 0.0,
+            averageRating=average_rating,
             releaseDate=movie.release_date,
         )
 
@@ -180,14 +180,14 @@ class MovieRankingItem(BaseModel):
     reviewCount: int
 
     @classmethod
-    def from_movie(cls, rank: int, movie, review_count: int = 0) -> "MovieRankingItem":
+    def from_movie(cls, rank: int, movie, review_count: int = 0, average_rating: float = 0.0) -> "MovieRankingItem":
         return cls(
             rank=rank,
             id=movie.mid,
             title=movie.title,
             posterUrl=movie.poster_url,
             genres=sorted({g.genre.name for g in movie.genres if g.genre}),
-            averageRating=float(movie.rat) if movie.rat is not None else 0.0,
+            averageRating=average_rating,
             releaseDate=movie.release_date,
             reviewCount=review_count,
         )
@@ -307,14 +307,14 @@ class AdminMovieResponse(BaseModel):
         from_attributes = True
 
     @classmethod
-    def from_movie(cls, movie, review_count: int = 0) -> "AdminMovieResponse":
+    def from_movie(cls, movie, review_count: int = 0, average_rating: float = 0.0) -> "AdminMovieResponse":
         return cls(
             mid=movie.mid,
             title=movie.title,
             director=movie.director,
             posterUrl=movie.poster_url,
             releaseDate=str(movie.release_date) if movie.release_date else None,
-            averageRating=float(movie.rat) if movie.rat is not None else 0.0,
+            averageRating=average_rating,
             reviewCount=review_count,
             createdAt=movie.created_at,
         )

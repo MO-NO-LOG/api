@@ -243,6 +243,7 @@ def get_all_movies(
         db.query(
             Movie,
             func.coalesce(review_count_sq.c.review_count, 0).label("review_count"),
+            func.coalesce(review_count_sq.c.avg_rating, 0.0).label("avg_rating"),
         )
         .outerjoin(review_count_sq, Movie.mid == review_count_sq.c.mid)
         .order_by(Movie.created_at.desc())
@@ -252,7 +253,8 @@ def get_all_movies(
     )
 
     return [
-        AdminMovieResponse.from_movie(m, int(review_count)) for m, review_count in rows
+        AdminMovieResponse.from_movie(m, int(review_count), average_rating=float(avg))
+        for m, review_count, avg in rows
     ]
 
 
