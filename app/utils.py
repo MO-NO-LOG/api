@@ -2,7 +2,7 @@ from datetime import date, datetime, timedelta, timezone
 from typing import TYPE_CHECKING, Optional
 
 import bcrypt
-from jose import jwt
+from jose import JWTError, jwt
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -101,6 +101,24 @@ def decode_token(token: str) -> dict:
         JWTError: If token is invalid or expired
     """
     return jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+
+
+def create_setup_token(email: str, expires_minutes: int = 5) -> str:
+    """Create a short-lived JWT for profile completion."""
+    to_encode = {
+        "sub": email,
+        "purpose": "profile_setup",
+        "exp": datetime.now(timezone.utc) + timedelta(minutes=expires_minutes),
+    }
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+
+def decode_setup_token(token: str) -> dict:
+    """Decode and validate a setup token."""
+    payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+    if payload.get("purpose") != "profile_setup":
+        raise JWTError("Invalid token purpose")
+    return payload
 
 
 def build_s3_url(object_key: str) -> str:
