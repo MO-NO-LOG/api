@@ -66,6 +66,10 @@ class Settings(BaseSettings):
     S3_PUBLIC_URL: Optional[str] = None  # Custom CDN/public URL (optional)
     S3_USE_PATH_STYLE: bool = False  # True for MinIO, False for AWS S3
 
+    # Kakao OAuth
+    KAKAO_REST_API_KEY: str = ""
+    KAKAO_REDIRECT_URI: str = ""
+
     class Config:
         env_file = ".env"
 
