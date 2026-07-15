@@ -245,19 +245,9 @@ async def kakao_callback(
     )
 
     response.delete_cookie("oauth_state", path="/")
-    response.set_cookie(
-        key="oauth_access_token",
-        value=access,
-        max_age=int(timedelta(minutes=30).total_seconds()),
-        httponly=False,
-        secure=settings.COOKIE_SECURE,
-        samesite=settings.COOKIE_SAMESITE,
-        path=settings.COOKIE_PATH,
-        domain=settings.COOKIE_DOMAIN if settings.COOKIE_DOMAIN else None,
-    )
 
     response.status_code = 307
-    response.headers["Location"] = f"{FRONTEND_URL}/login.html"
+    response.headers["Location"] = f"{FRONTEND_URL}/#access_token={access}"
     return response
 
 
@@ -328,17 +318,6 @@ async def complete_profile(
         response,
         refresh,
         max_age=int(timedelta(days=7).total_seconds()),
-    )
-
-    response.set_cookie(
-        key="oauth_access_token",
-        value=access,
-        max_age=int(timedelta(minutes=30).total_seconds()),
-        httponly=False,
-        secure=settings.COOKIE_SECURE,
-        samesite=settings.COOKIE_SAMESITE,
-        path=settings.COOKIE_PATH,
-        domain=settings.COOKIE_DOMAIN if settings.COOKIE_DOMAIN else None,
     )
 
     return {
