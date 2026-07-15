@@ -257,7 +257,7 @@ async def kakao_callback(
     )
 
     response.status_code = 307
-    response.headers["Location"] = f"{FRONTEND_URL}/"
+    response.headers["Location"] = f"{FRONTEND_URL}/login.html"
     return response
 
 
