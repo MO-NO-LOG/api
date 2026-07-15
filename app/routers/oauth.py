@@ -47,6 +47,7 @@ async def kakao_login():
         "client_id": settings.KAKAO_REST_API_KEY,
         "redirect_uri": settings.KAKAO_REDIRECT_URI,
         "response_type": "code",
+        "prompt": "login",
     }
     auth_url = f"{KAKAO_AUTH_URL}?{urlencode(params)}"
 
