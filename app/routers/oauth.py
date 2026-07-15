@@ -219,12 +219,9 @@ async def kakao_callback(
     if missing:
         setup_token = create_setup_token(str(user.email))
         response.delete_cookie("oauth_state", path="/")
-        return Response(
-            status_code=307,
-            headers={
-                "Location": f"{FRONTEND_URL}/profile_complete.html?{urlencode({'token': setup_token, 'missing': ','.join(missing)})}"
-            },
-        )
+        response.status_code = 307
+        response.headers["Location"] = f"{FRONTEND_URL}/profile_complete.html?{urlencode({'token': setup_token, 'missing': ','.join(missing)})}"
+        return response
 
     access = create_access_token(
         data={"sub": str(user.email)},
@@ -259,10 +256,9 @@ async def kakao_callback(
         domain=settings.COOKIE_DOMAIN if settings.COOKIE_DOMAIN else None,
     )
 
-    return Response(
-        status_code=307,
-        headers={"Location": f"{FRONTEND_URL}/"},
-    )
+    response.status_code = 307
+    response.headers["Location"] = f"{FRONTEND_URL}/"
+    return response
 
 
 @router.post("/kakao/complete-profile", response_model=TokenResponse)
