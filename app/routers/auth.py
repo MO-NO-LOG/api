@@ -246,11 +246,13 @@ async def logout(
 
     await RefreshTokenService.delete_refresh_token(str(current_user.email))
     clear_refresh_cookie(response)
-    response.delete_cookie(
-        key="oauth_access_token",
-        path=settings.COOKIE_PATH,
-        domain=settings.COOKIE_DOMAIN if settings.COOKIE_DOMAIN else None,
-    )
+    delete_cookie_kwargs = {
+        "key": "oauth_access_token",
+        "path": settings.COOKIE_PATH,
+    }
+    if settings.COOKIE_DOMAIN:
+        delete_cookie_kwargs["domain"] = settings.COOKIE_DOMAIN
+    response.delete_cookie(**delete_cookie_kwargs)
 
     return {"message": "Successfully logged out"}
 
